@@ -28,13 +28,12 @@ func (d *Dlog) Display() {
 	_, _ = d.file.Seek(0, io.SeekStart)
 	d.fetcher.seek(0)
 
-	v := &viewer{
-		fetcher:   d.fetcher,
-		ctx:       d.ctx,
-		wrap:      true,
-		keepChars: 0,
-		winName:   d.docker.getName(),
-	}
+	v := NewViewer(
+		WithCtx(d.ctx),
+		WithFetcher(d.fetcher),
+		WithWindowName(d.docker.getName()),
+		WithWrap(true))
+
 	v.termGui()
 }
 

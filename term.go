@@ -37,6 +37,9 @@ type viewer struct {
 	ctx           context.Context
 	following     bool
 	winName       string
+
+	keyArrowRight func()
+	keyArrowLeft  func()
 }
 
 type action uint
@@ -58,6 +61,61 @@ type Focusing interface {
 type Navigator interface {
 	Focusing
 	navigate(direction int)
+}
+
+type ViewOptionsFunc func(*viewer)
+
+func WithWindowName(name string) ViewOptionsFunc {
+	return func(v *viewer) {
+		v.winName = name
+	}
+}
+
+func WithFetcher(fetcher *Fetcher) ViewOptionsFunc {
+	return func(v *viewer) {
+		v.fetcher = fetcher
+	}
+}
+
+func WithCtx(ctx context.Context) ViewOptionsFunc {
+	return func(v *viewer) {
+		v.ctx = ctx
+	}
+}
+
+func WithWrap(wrap bool) ViewOptionsFunc {
+	return func(v *viewer) {
+		v.wrap = wrap
+	}
+}
+
+func WithKeyArrowRight(f func()) ViewOptionsFunc {
+	return func(v *viewer) {
+		v.keyArrowRight = f
+	}
+}
+
+func WithKeyArrowLeft(f func()) ViewOptionsFunc {
+	return func(v *viewer) {
+		v.keyArrowLeft = f
+	}
+}
+
+func NewViewer(opts ...ViewOptionsFunc) *viewer {
+	v := &viewer{}
+	for _, opt := range opts {
+		opt(v)
+	}
+
+	if v.keyArrowLeft == nil {
+		v.keyArrowLeft = v.navigateLeft
+	}
+
+	if v.keyArrowRight == nil {
+		v.keyArrowRight = v.navigateRight
+	}
+
+	return v
 }
 
 func (v *viewer) searchForward() {
@@ -471,9 +529,9 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 		case termbox.KeyArrowUp:
 			v.navigate(-1)
 		case termbox.KeyArrowRight:
-			v.navigateRight()
+			v.keyArrowRight()
 		case termbox.KeyArrowLeft:
-			v.navigateLeft()
+			v.keyArrowRight()
 		case termbox.KeyCtrlB, termbox.KeyPgup:
 			v.navigatePageUp()
 		case termbox.KeyCtrlU:
