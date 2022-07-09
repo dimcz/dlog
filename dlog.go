@@ -17,6 +17,7 @@ type Dlog struct {
 	file    *os.File
 	fetcher *Fetcher
 	docker  *Docker
+	v       *viewer
 }
 
 func (d *Dlog) GetFile() *os.File {
@@ -24,17 +25,44 @@ func (d *Dlog) GetFile() *os.File {
 }
 
 func (d *Dlog) Display() {
+	d.InitFetcher()
+
+	d.v = NewViewer(
+		WithCtx(d.ctx),
+		WithFetcher(d.fetcher),
+		WithWrap(true),
+		WithKeyArrowRight(d.rightDirection),
+		WithKeyArrowLeft(d.leftDirection))
+
+	d.v.termGui(d.docker.getName())
+}
+
+func (d *Dlog) InitFetcher() {
 	d.fetcher = NewFetcher(d.ctx, d.file)
 	_, _ = d.file.Seek(0, io.SeekStart)
 	d.fetcher.seek(0)
+}
 
-	v := NewViewer(
-		WithCtx(d.ctx),
-		WithFetcher(d.fetcher),
-		WithWindowName(d.docker.getName()),
-		WithWrap(true))
+func (d *Dlog) rightDirection() {
+	d.docker.getNextContainer()
+	d.wg.Wait()
 
-	v.termGui()
+	d.v.setTerminalName(d.docker.getName())
+
+	d.docker.fetchLogs(d.wg)
+
+	d.InitFetcher()
+}
+
+func (d *Dlog) leftDirection() {
+	d.docker.getPrevContainer()
+	d.wg.Wait()
+
+	d.v.setTerminalName(d.docker.getName())
+
+	d.docker.fetchLogs(d.wg)
+
+	d.InitFetcher()
 }
 
 func (d *Dlog) Shutdown() {
@@ -72,13 +100,12 @@ func NewWithDocker() (*Dlog, error) {
 
 	d := New(f)
 
-	d.docker, err = DockerSetup()
+	d.docker, err = DockerSetup(cacheFile)
 	if err != nil {
 		return nil, err
 	}
 
-	d.wg.Add(1)
-	go d.docker.LoadLogs(d.wg, cacheFile)
+	d.docker.fetchLogs(d.wg)
 
 	return d, nil
 }

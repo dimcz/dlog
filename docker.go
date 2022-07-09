@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"strings"
 	"sync"
 
@@ -21,6 +22,7 @@ type Container struct {
 }
 
 type Docker struct {
+	out        *os.File
 	containers []Container
 	current    int
 	reader     io.ReadCloser
@@ -45,7 +47,7 @@ func CheckDaemon() bool {
 	return true
 }
 
-func DockerSetup() (*Docker, error) {
+func DockerSetup(out *os.File) (*Docker, error) {
 	ctx := context.Background()
 
 	containers, err := docker().ContainerList(ctx, types.ContainerListOptions{})
@@ -53,7 +55,7 @@ func DockerSetup() (*Docker, error) {
 		return nil, err
 	}
 
-	d := Docker{}
+	d := Docker{out: out}
 
 	for _, c := range containers {
 		d.containers = append(d.containers, Container{
@@ -73,7 +75,13 @@ func (d *Docker) Close() error {
 	return nil
 }
 
-func (d *Docker) LoadLogs(wg *sync.WaitGroup, out io.Writer) {
+func (d *Docker) fetchLogs(wg *sync.WaitGroup) {
+	wg.Add(1)
+
+	go d.loadLogs(wg)
+}
+
+func (d *Docker) loadLogs(wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	if d.reader != nil {
@@ -94,7 +102,7 @@ func (d *Docker) LoadLogs(wg *sync.WaitGroup, out io.Writer) {
 	}
 
 	for {
-		if _, err := stdcopy.StdCopy(out, out, d.reader); err != nil {
+		if _, err := stdcopy.StdCopy(d.out, d.out, d.reader); err != nil {
 			return
 		}
 	}
@@ -104,4 +112,32 @@ func (d *Docker) getName() string {
 	return fmt.Sprintf("%s (ID:%s)",
 		strings.Replace(d.containers[d.current].Name, "/", "", 1),
 		d.containers[d.current].ID[:12])
+}
+
+func (d *Docker) getNextContainer() {
+	c := d.current + 1
+	if c >= len(d.containers) {
+		c = 0
+	}
+	d.current = c
+
+	if d.reader != nil {
+		_ = d.reader.Close()
+	}
+
+	_ = d.out.Truncate(0)
+}
+
+func (d *Docker) getPrevContainer() {
+	c := d.current - 1
+	if c < 0 {
+		c = len(d.containers) - 1
+	}
+	d.current = c
+
+	if d.reader != nil {
+		_ = d.reader.Close()
+	}
+
+	_ = d.out.Truncate(0)
 }

@@ -36,7 +36,6 @@ type viewer struct {
 	keepChars     int
 	ctx           context.Context
 	following     bool
-	winName       string
 
 	keyArrowRight func()
 	keyArrowLeft  func()
@@ -64,12 +63,6 @@ type Navigator interface {
 }
 
 type ViewOptionsFunc func(*viewer)
-
-func WithWindowName(name string) ViewOptionsFunc {
-	return func(v *viewer) {
-		v.winName = name
-	}
-}
 
 func WithFetcher(fetcher *Fetcher) ViewOptionsFunc {
 	return func(v *viewer) {
@@ -116,6 +109,10 @@ func NewViewer(opts ...ViewOptionsFunc) *viewer {
 	}
 
 	return v
+}
+
+func (v *viewer) setTerminalName(name string) {
+	v.info.winName = name
 }
 
 func (v *viewer) searchForward() {
@@ -572,7 +569,7 @@ var requestRefill = make(chan struct{})
 var requestStatusUpdate = make(chan LineNo)
 var requestKeepCharsChange = make(chan int)
 
-func (v *viewer) termGui() {
+func (v *viewer) termGui(terminalName string) {
 	err := termbox.Init()
 	if err != nil {
 		panic(err)
@@ -597,7 +594,7 @@ func (v *viewer) termGui() {
 		keepChars:      &v.keepChars,
 		flock:          &v.fetcher.lock,
 		searchType:     filters.CaseSensitive,
-		winName:        v.winName,
+		winName:        terminalName,
 	}
 	v.focus = v
 	v.buffer = viewBuffer{
