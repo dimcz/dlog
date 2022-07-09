@@ -13,7 +13,7 @@ func Debug(l ...any) {
 		return
 	}
 
-	f, err := os.OpenFile(config.Config.LogPath, os.O_RDWR|os.O_CREATE, os.FileMode(0600))
+	f, err := os.OpenFile(config.Config.LogPath, os.O_RDWR|os.O_CREATE|os.O_APPEND, os.FileMode(0600))
 	if err != nil {
 		log.Println(err)
 

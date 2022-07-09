@@ -1,9 +1,10 @@
 package config
 
 import (
-	"dlog/utils"
 	"os"
 	"path/filepath"
+
+	"dlog/utils"
 )
 
 var Config struct {
@@ -14,7 +15,7 @@ var Config struct {
 }
 
 func init() {
-	Config.LogPath = "/tmp/debug.log" // filepath.Join(os.TempDir(), "debug.log")
+	Config.LogPath = filepath.Join(os.TempDir(), "debug.log")
 
 	dlogdir := os.Getenv("DLOG_DIR")
 	if dlogdir == "" {
