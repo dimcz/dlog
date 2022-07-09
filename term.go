@@ -275,7 +275,7 @@ func (v *viewer) draw() {
 
 	dataLine := 0
 	if v.wrap {
-		dataLine = v.getWrapCount() - 1
+		dataLine = v.getWrapCount()
 		logging.Debug("draw dataline:", dataLine)
 	}
 
