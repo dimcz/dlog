@@ -309,7 +309,7 @@ func (v *viewer) navigate(direction int) {
 
 func (v *viewer) navigateEnd() {
 	v.buffer.reset(Pos{POS_UNKNOWN, v.fetcher.lastOffset()})
-	v.navigate(-v.height) //not adding +1 since nothing on screen now
+	v.navigate(-v.height)
 	v.following = true
 }
 
