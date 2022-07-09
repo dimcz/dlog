@@ -14,7 +14,7 @@ var Config struct {
 }
 
 func init() {
-	Config.LogPath = filepath.Join(os.TempDir(), "debug.log")
+	Config.LogPath = "/tmp/debug.log" // filepath.Join(os.TempDir(), "debug.log")
 
 	dlogdir := os.Getenv("DLOG_DIR")
 	if dlogdir == "" {
