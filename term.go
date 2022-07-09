@@ -531,7 +531,7 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 		case termbox.KeyArrowRight:
 			v.keyArrowRight()
 		case termbox.KeyArrowLeft:
-			v.keyArrowRight()
+			v.keyArrowLeft()
 		case termbox.KeyCtrlB, termbox.KeyPgup:
 			v.navigatePageUp()
 		case termbox.KeyCtrlU:
