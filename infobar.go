@@ -2,17 +2,18 @@ package dlog
 
 import (
 	"bufio"
-	"dlog/config"
-	"dlog/filters"
-	"dlog/logging"
-	"dlog/runes"
-	"dlog/utils"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
+
+	"dlog/config"
+	"dlog/filters"
+	"dlog/logging"
+	"dlog/runes"
+	"dlog/utils"
 
 	"github.com/nsf/termbox-go"
 )
@@ -37,7 +38,7 @@ const (
 type infobar struct {
 	y              int
 	width          int
-	cx             int //cursor position
+	cx             int // cursor position
 	editBuffer     []rune
 	mode           infobarMode
 	flock          *sync.RWMutex
@@ -48,6 +49,7 @@ type infobar struct {
 	history        ibHistory
 	searchType     filters.SearchType
 	message        ibMessage
+	winName        string
 }
 
 type ibMessage struct {
@@ -99,6 +101,12 @@ func (v *infobar) statusBar() {
 	for i := 0; i < len(str); i++ {
 		termbox.SetCell(v.width-len(str)+i, v.y, str[i], termbox.ColorYellow, termbox.ColorDefault)
 	}
+
+	name := []rune(v.winName)
+	for i := 0; i < len(name) && i+1 < v.width; i++ {
+		termbox.SetCell(i, v.y, name[i], termbox.ColorYellow, termbox.ColorDefault)
+	}
+
 	if !*v.filtersEnabled {
 		str := []rune("[-FILTERS]")
 		for i := 0; i < len(str) && i+1 < v.width; i++ {

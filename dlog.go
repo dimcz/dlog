@@ -33,6 +33,7 @@ func (d *Dlog) Display() {
 		ctx:       d.ctx,
 		wrap:      true,
 		keepChars: 0,
+		winName:   d.docker.getName(),
 	}
 	v.termGui()
 }

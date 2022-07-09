@@ -2,11 +2,13 @@ package dlog
 
 import (
 	"context"
-	"dlog/logging"
+	"fmt"
 	"io"
 	"log"
 	"strings"
 	"sync"
+
+	"dlog/logging"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
@@ -96,4 +98,10 @@ func (d *Docker) LoadLogs(wg *sync.WaitGroup, out io.Writer) {
 			return
 		}
 	}
+}
+
+func (d *Docker) getName() string {
+	return fmt.Sprintf("%s (ID:%s)",
+		strings.Replace(d.containers[d.current].Name, "/", "", 1),
+		d.containers[d.current].ID[:12])
 }

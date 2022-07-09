@@ -36,6 +36,7 @@ type viewer struct {
 	keepChars     int
 	ctx           context.Context
 	following     bool
+	winName       string
 }
 
 type action uint
@@ -538,6 +539,7 @@ func (v *viewer) termGui() {
 		keepChars:      &v.keepChars,
 		flock:          &v.fetcher.lock,
 		searchType:     filters.CaseSensitive,
+		winName:        v.winName,
 	}
 	v.focus = v
 	v.buffer = viewBuffer{
