@@ -35,7 +35,11 @@ func (d *Dlog) Display() {
 	_, _ = d.file.Seek(0, io.SeekStart)
 	d.fetcher.seek(0)
 
-	// Viewer
+	v := &viewer{
+		fetcher: d.fetcher,
+		ctx:     d.ctx,
+	}
+	v.termGui()
 }
 
 func (d *Dlog) Shutdown() {

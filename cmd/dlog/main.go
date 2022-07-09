@@ -1,6 +1,8 @@
 package main
 
 import (
+	"dlog"
+	"dlog/utils"
 	"flag"
 	"fmt"
 )
@@ -15,4 +17,12 @@ func main() {
 	if showVersion {
 		fmt.Println("Dlog Version: ", VERSION)
 	}
+
+	path := flag.Arg(0)
+	d, err := dlog.NewFromFile(path)
+	utils.ExitOnErr(err)
+
+	defer d.Shutdown()
+
+	d.Display()
 }

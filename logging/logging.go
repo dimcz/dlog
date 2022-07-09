@@ -4,6 +4,7 @@ import (
 	"dlog/config"
 	"log"
 	"os"
+	"time"
 )
 
 func Debug(l ...any) {
@@ -24,4 +25,13 @@ func Debug(l ...any) {
 
 	log.SetOutput(f)
 	log.Println(l...)
+}
+
+func Timeit(l ...interface{}) func() {
+	start := time.Now()
+	Debug("->", l)
+
+	return func() {
+		Debug("<- ", l, time.Since(start))
+	}
 }
