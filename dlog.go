@@ -45,33 +45,25 @@ func (d *Dlog) InitFetcher() {
 
 func (d *Dlog) rightDirection() {
 	d.docker.getNextContainer()
-	d.wg.Wait()
-
-	d.v.setTerminalName(d.docker.getName())
-
-	d.docker.fetchLogs(d.wg)
-
-	d.InitFetcher()
+	d.reloadFetcher()
 }
 
 func (d *Dlog) leftDirection() {
 	d.docker.getPrevContainer()
+	d.reloadFetcher()
+}
+
+func (d *Dlog) reloadFetcher() {
 	d.wg.Wait()
-
 	d.v.setTerminalName(d.docker.getName())
-
 	d.docker.fetchLogs(d.wg)
-
 	d.InitFetcher()
 }
 
 func (d *Dlog) Shutdown() {
-
 	_ = d.docker.Close()
-
 	d.cancel()
 	d.wg.Wait()
-
 	_ = d.file.Close()
 	_ = os.Remove(d.file.Name())
 }
