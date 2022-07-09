@@ -2,10 +2,11 @@ package dlog
 
 import (
 	"context"
-	"dlog/filters"
-	"dlog/logging"
 	"io"
 	"sync"
+
+	"dlog/filters"
+	"dlog/logging"
 )
 
 type viewBuffer struct {
@@ -25,8 +26,8 @@ func (b *viewBuffer) getLine(offset int) (Line, error) {
 	}
 	if b.pos+offset >= len(b.buffer) || len(b.buffer) == 0 {
 		b.eofReached = true
+
 		return Line{}, io.EOF
-		//return ansi.NewAstring([]byte{}), io.EOF
 	}
 	return b.buffer[b.pos+offset], nil // TODO: What happens if we reached the end? panic!
 }
@@ -43,7 +44,7 @@ func (b *viewBuffer) fill() fillResult {
 	defer cancel()
 	fillFrom := b.resetPos
 	if len(b.buffer) > 0 {
-		fillFrom = b.buffer[len(b.buffer)-1].Pos //Will start getting from next Line, not from current
+		fillFrom = b.buffer[len(b.buffer)-1].Pos // Will start getting from next Line, not from current
 	}
 	dataChan := b.fetcher.Get(ctx, fillFrom)
 	result := fillResult{}
@@ -104,9 +105,9 @@ func (b *viewBuffer) backFill() {
 		}
 	}
 	if len(newData) == 0 {
-		return //nothing to do here
+		return // nothing to do here
 	}
-	//oldData := b.buffer[0:]
+	// oldData := b.buffer[0:]
 	if len(b.buffer) > b.window*2 {
 		b.buffer = b.buffer[0 : b.window*2] // shrinking forward-buffer
 	}
@@ -116,8 +117,9 @@ func (b *viewBuffer) backFill() {
 	for i := len(newData) - 1; i >= 0; i-- {
 		b.buffer[len(newData)-1-i] = newData[i] // Inserting values in reverse order
 	}
-	b.pos += len(newData)
 
+	b.pos += len(newData)
+	logging.Debug("backFill - len:", len(newData), "pos:", b.pos, "win:", b.window)
 }
 
 func (b *viewBuffer) shift(direction int) {
@@ -130,14 +132,18 @@ func (b *viewBuffer) shift(direction int) {
 		if b.pos+direction < 0 {
 			b.backFill()
 		}
+
 		b.pos = b.pos + direction
 		if b.pos < 0 {
 			b.pos = 0
 		}
+
+		logging.Debug("shift - pos:", b.pos)
+
 		return
 	}
-	//b.Line = b.Line + direction
-	//if len(b.buffer)
+	// b.Line = b.Line + direction
+	// if len(b.buffer)
 	downShift := func() bool {
 		if b.pos+direction < len(b.buffer)-1 {
 			b.pos = b.pos + direction

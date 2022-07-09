@@ -2,11 +2,12 @@ package dlog
 
 import (
 	"context"
-	"dlog/config"
-	"dlog/utils"
 	"io"
 	"os"
 	"sync"
+
+	"dlog/config"
+	"dlog/utils"
 )
 
 type Dlog struct {

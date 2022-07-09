@@ -3,10 +3,6 @@ package dlog
 import (
 	"bufio"
 	"context"
-	"dlog/ansi"
-	"dlog/filters"
-	"dlog/logging"
-	"dlog/utils"
 	"fmt"
 	"io"
 	"os"
@@ -14,6 +10,11 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"dlog/ansi"
+	"dlog/filters"
+	"dlog/logging"
+	"dlog/utils"
 
 	"code.cloudfoundry.org/bytefmt"
 	"github.com/mattn/go-runewidth"
@@ -191,8 +192,8 @@ func (v *viewer) replaceWithKeptChars(data ansi.Astring) ([]rune, []ansi.RuneAtt
 	for i := 0; i < v.keepChars && i < len(chars); i++ {
 		attr := &attrs[i]
 		attr.Fg = ansi.FgColor(ansi.ColorBlue)
-		//attr.Bg = ansi.BgColor(ansi.ColorBlue)
-		//attr.Style = uint8(ansi.StyleBold)
+		// attr.Bg = ansi.BgColor(ansi.ColorBlue)
+		// attr.Style = uint8(ansi.StyleBold)
 	}
 	return chars, attrs
 }
@@ -231,6 +232,37 @@ func ToTermboxAttr(attr ansi.RuneAttr) (fg, bg termbox.Attribute) {
 	return fg, bg
 }
 
+func (v *viewer) getWrapCount() int {
+	var tx int
+	var wl int
+	for ty, dataLine := 0, 0; ty < v.height; ty++ {
+		tx = 0
+		line, err := v.buffer.getLine(dataLine)
+		if err == io.EOF {
+			break
+		}
+		chars, _ := v.replaceWithKeptChars(line.Str)
+		for _, char := range chars {
+			tx += runewidth.RuneWidth(char)
+			if tx >= v.width {
+				if v.wrap {
+					tx = 0
+					ty++
+					wl++
+				} else {
+					break
+				}
+			}
+		}
+		if ty >= v.height {
+			break
+		}
+		dataLine++
+	}
+
+	return wl
+}
+
 func (v *viewer) draw() {
 	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
 	var chars []rune
@@ -240,7 +272,14 @@ func (v *viewer) draw() {
 	var hlIndices [][]int
 	var hlChars int
 	var tx int
-	for ty, dataLine := 0, 0; ty < v.height; ty++ {
+
+	dataLine := 0
+	if v.wrap {
+		dataLine = v.getWrapCount() - 1
+		logging.Debug("draw dataline:", dataLine)
+	}
+
+	for ty := 0; ty < v.height; ty++ {
 		tx = 0
 		hlChars = 0
 		line, err := v.buffer.getLine(dataLine)
@@ -294,8 +333,9 @@ func (v *viewer) draw() {
 		}
 		dataLine++
 	}
+
 	v.info.draw()
-	termbox.Flush()
+	_ = termbox.Flush()
 }
 
 func (v *viewer) navigate(direction int) {
@@ -310,6 +350,7 @@ func (v *viewer) navigate(direction int) {
 func (v *viewer) navigateEnd() {
 	v.buffer.reset(Pos{POS_UNKNOWN, v.fetcher.lastOffset()})
 	v.navigate(-v.height)
+
 	v.following = true
 }
 
@@ -581,7 +622,7 @@ func (v *viewer) saveFiltered(filename string) {
 	writer := bufio.NewWriterSize(f, 64*1024)
 	v.info.setMessage(ibMessage{str: "Saving...", color: termbox.ColorYellow})
 	for l := range lines {
-		//TODO: Re-Add colors information
+		// TODO: Re-Add colors information
 		_, _ = writer.WriteString(string(l.Str.Runes))
 		_ = writer.WriteByte('\n')
 	}

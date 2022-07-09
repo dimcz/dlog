@@ -2,9 +2,10 @@ package ansi
 
 import (
 	"bytes"
-	"dlog/runes"
 	"strconv"
 	"strings"
+
+	"dlog/runes"
 )
 
 type RuneAttr struct {
