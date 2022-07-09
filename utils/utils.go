@@ -3,6 +3,7 @@ package utils
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -120,4 +121,14 @@ func ExitOnErr(err error) {
 		_, _ = fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+func MakeCacheFile(fn string) (f *os.File, err error) {
+	if fn == "" {
+		f, err = ioutil.TempFile(os.TempDir(), "dlog_")
+	} else {
+		f = OpenRewrite(fn)
+	}
+
+	return
 }

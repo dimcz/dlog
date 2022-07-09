@@ -205,7 +205,7 @@ func (b *viewBuffer) searchBackHighlighted() int {
 
 func (b *viewBuffer) lastLine() Line {
 	lastLine := len(b.buffer) - 1
-	if (len(b.buffer) - 1) != -1 {
+	if lastLine != -1 {
 		return b.buffer[lastLine]
 	}
 

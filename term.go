@@ -654,17 +654,19 @@ func (v *viewer) follow(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-time.After(delay):
-			prevOffset := lastOffset
-			lastOffset = v.fetcher.lastOffset()
-			if lastOffset != prevOffset {
-				go func() {
-					go termbox.Interrupt()
-					select {
-					case requestRefill <- struct{}{}:
-					case <-ctx.Done():
-						return
-					}
-				}()
+			if v.following {
+				prevOffset := lastOffset
+				lastOffset = v.fetcher.lastOffset()
+				if lastOffset != prevOffset {
+					go func() {
+						go termbox.Interrupt()
+						select {
+						case requestRefill <- struct{}{}:
+						case <-ctx.Done():
+							return
+						}
+					}()
+				}
 			}
 		}
 	}

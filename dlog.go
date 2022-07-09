@@ -5,44 +5,41 @@ import (
 	"dlog/config"
 	"dlog/utils"
 	"io"
-	"io/ioutil"
 	"os"
 	"sync"
 )
 
 type Dlog struct {
-	wg          *sync.WaitGroup
-	ctx         context.Context
-	cancel      context.CancelFunc
-	file        *os.File
-	fetcher     *Fetcher
-	initialized bool
+	wg      *sync.WaitGroup
+	ctx     context.Context
+	cancel  context.CancelFunc
+	file    *os.File
+	fetcher *Fetcher
+	docker  *Docker
 }
 
-// GetFile returns input file, original or cache file
-func (d *Dlog) GetFile() *os.File { return d.file }
-
-func (d *Dlog) Init() {
-	d.fetcher = NewFetcher(d.ctx, d.file)
-	d.initialized = true
+func (d *Dlog) GetFile() *os.File {
+	return d.file
 }
 
 func (d *Dlog) Display() {
-	if !d.initialized {
-		d.Init()
-	}
-
+	d.fetcher = NewFetcher(d.ctx, d.file)
 	_, _ = d.file.Seek(0, io.SeekStart)
 	d.fetcher.seek(0)
 
 	v := &viewer{
-		fetcher: d.fetcher,
-		ctx:     d.ctx,
+		fetcher:   d.fetcher,
+		ctx:       d.ctx,
+		wrap:      true,
+		keepChars: 0,
 	}
 	v.termGui()
 }
 
 func (d *Dlog) Shutdown() {
+
+	_ = d.docker.Close()
+
 	d.cancel()
 	d.wg.Wait()
 
@@ -61,25 +58,26 @@ func New(f *os.File) *Dlog {
 	}
 }
 
-func NewFromFile(path string) (*Dlog, error) {
-	if err := utils.ValidateRegularFile(path); err != nil {
-		return nil, err
-	}
-
-	f, err := os.Open(path)
+func NewWithDocker() (*Dlog, error) {
+	cacheFile, err := utils.MakeCacheFile(config.Config.CachePath)
 	if err != nil {
 		return nil, err
 	}
 
-	return New(f), nil
-}
-
-func makeCacheFile() (f *os.File, err error) {
-	if config.Config.CachePath == "" {
-		f, err = ioutil.TempFile(os.TempDir(), "dlog_")
-	} else {
-		f = utils.OpenRewrite(config.Config.CachePath)
+	f, err := os.Open(cacheFile.Name())
+	if err != nil {
+		return nil, err
 	}
 
-	return
+	d := New(f)
+
+	d.docker, err = DockerSetup()
+	if err != nil {
+		return nil, err
+	}
+
+	d.wg.Add(1)
+	go d.docker.LoadLogs(d.wg, cacheFile)
+
+	return d, nil
 }

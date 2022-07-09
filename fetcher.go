@@ -16,7 +16,7 @@ import (
 
 type Fetcher struct {
 	mLock            sync.RWMutex
-	lineMap          map[Offset]LineNo
+	lineMap          map[Offset]LineNo // caches Offset of some lines, meanwhile only last one, when available
 	reader           *os.File
 	lock             sync.RWMutex
 	lineReader       *bufio.Reader
@@ -44,7 +44,6 @@ func (l Pos) String() string {
 	if l.Line == POS_UNKNOWN {
 		return fmt.Sprintf("b%d", l.Offset)
 	}
-
 	return fmt.Sprintf("%d", l.Line+1)
 }
 
@@ -78,7 +77,6 @@ func (f *Fetcher) filteredLine(l PosLine) Line {
 		logging.Debug(f.highlightedLines, l.Pos.Line)
 		if highlighted == l.Pos.Line {
 			filterResult = filters.FilterHighlighted
-
 			break
 		}
 	}
@@ -149,11 +147,7 @@ func (f *Fetcher) readline() ([]byte, Offset, error) {
 	str, err := f.lineReader.ReadBytes('\n')
 	startingOffset := f.lineReaderOffset
 	if len(str) > 0 {
-		if err == io.EOF {
-			// Bad idea to remember position when we are not done reading current line
-			f.lineReader = nil
-			f.lineReaderPos = 0
-		} else if err == nil {
+		if err == nil {
 			f.lineReaderOffset += Offset(len(str))
 		}
 	}
@@ -225,7 +219,6 @@ func (f *Fetcher) Get(ctx context.Context, from Pos) <-chan Line {
 	startFrom, err := f.findLine(from.Offset)
 	if err == io.EOF {
 		close(ret)
-
 		return ret
 	}
 	if from.Line == POS_UNKNOWN {
@@ -302,7 +295,7 @@ func (f *Fetcher) Search(ctx context.Context, from Pos, searchFunc filters.Searc
 	return POS_NOT_FOUND
 }
 
-// Search returns position of next matching search
+// SearchHighlighted returns position of next matching search
 func (f *Fetcher) SearchHighlighted(ctx context.Context, from Pos) (pos Pos) {
 	defer logging.Timeit("Searching")()
 	ctx, cancel := context.WithCancel(ctx)
@@ -330,7 +323,7 @@ func (f *Fetcher) SearchBack(ctx context.Context, from Pos, searchFunc filters.S
 	return POS_NOT_FOUND
 }
 
-// SearchBack returns position of next matching back-search
+// SearchBackHighlighted returns position of next matching back-search
 func (f *Fetcher) SearchBackHighlighted(ctx context.Context, from Pos) (pos Pos) {
 	defer logging.Timeit("Back-Searching")()
 	ctx, cancel := context.WithCancel(ctx)
@@ -358,7 +351,6 @@ func (f *Fetcher) advanceLines(from Pos) PosLine {
 		ret.b, ret.Offset, ret.Line = str, offset, i
 		if err == io.EOF {
 			ret.b = ret.b[:len(ret.b)-1] // got no \n stripped, hacky, used only for saving map and it lacks error information
-
 			return ret
 		}
 		if i >= 3500+from.Line {
@@ -377,7 +369,6 @@ func (f *Fetcher) lastOffset() Offset {
 	if stat.Size() == 0 {
 		return Offset(0)
 	}
-
 	return Offset(stat.Size() - 1)
 }
 
@@ -440,7 +431,6 @@ func (f *Fetcher) GetBack(ctx context.Context, fromPos Pos) <-chan Line {
 				case ret <- l: //TODO: paralellize
 				case <-ctx.Done():
 					f.lock.Unlock()
-
 					return
 				}
 			}
@@ -500,10 +490,8 @@ func (f *Fetcher) resolveLine(o Offset) LineNo {
 func (f *Fetcher) removeLastFilter() bool {
 	if len(f.filters) > 0 {
 		f.filters = f.filters[:len(f.filters)-1]
-
 		return true
 	}
-
 	return false
 }
 func (f *Fetcher) toggleHighlight(line LineNo) {
