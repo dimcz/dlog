@@ -35,8 +35,7 @@ func Debug(l ...interface{}) {
 	}
 
 	defer func(f *os.File) {
-		err := f.Close()
-		if err != nil {
+		if err := f.Close(); err != nil {
 			log.Println(err)
 		}
 	}(f)
