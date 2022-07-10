@@ -44,11 +44,13 @@ func (d *Dlog) InitFetcher() {
 }
 
 func (d *Dlog) rightDirection() {
+	d.v.initScreen()
 	d.docker.getNextContainer()
 	d.reloadFetcher()
 }
 
 func (d *Dlog) leftDirection() {
+	d.v.initScreen()
 	d.docker.getPrevContainer()
 	d.reloadFetcher()
 }

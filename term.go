@@ -600,6 +600,9 @@ func (v *viewer) termGui(terminalName string) {
 	v.buffer = viewBuffer{
 		fetcher: v.fetcher,
 	}
+
+	v.initScreen()
+
 	v.resize(termbox.Size())
 	v.navigateEnd()
 
@@ -607,6 +610,7 @@ func (v *viewer) termGui(terminalName string) {
 	go func() { v.refreshIfEmpty(ctx); wg.Done() }()
 	go func() { v.updateLastLine(ctx); wg.Done() }()
 	go func() { v.follow(ctx); wg.Done() }()
+
 loop:
 	for {
 		switch ev := termbox.PollEvent(); ev.Type {
@@ -645,8 +649,23 @@ loop:
 			}
 		}
 	}
-
 }
+
+func (v *viewer) initScreen() {
+	logging.LogOnErr(termbox.Clear(termbox.ColorDefault, termbox.ColorDefault))
+
+	tx, ty := termbox.Size()
+
+	str := []rune("Waiting log data...")
+	tx = tx/2 - len(str)/2
+	ty = ty / 2
+	for i := 0; i < len(str); i++ {
+		termbox.SetCell(tx+i, ty, str[i], termbox.ColorYellow, termbox.ColorDefault)
+	}
+
+	logging.LogOnErr(termbox.Flush())
+}
+
 func (v *viewer) refill() {
 	for {
 		result := v.buffer.fill()

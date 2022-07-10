@@ -8,6 +8,12 @@ import (
 	"dlog/config"
 )
 
+func LogOnErr(err error) {
+	if err != nil {
+		Debug(err)
+	}
+}
+
 func Debug(l ...any) {
 	if !config.Config.Enabled {
 		return
