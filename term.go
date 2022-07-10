@@ -662,7 +662,10 @@ loop:
 func (v *viewer) initScreen() {
 	logging.LogOnErr(termbox.Clear(termbox.ColorDefault, termbox.ColorDefault))
 	v.buffer.reset(Pos{0, 0})
-	v.resetLastLine()
+
+	select {
+	case v.lastLineControl <- struct{}{}:
+	}
 
 	tx, ty := termbox.Size()
 
@@ -674,12 +677,6 @@ func (v *viewer) initScreen() {
 	}
 
 	logging.LogOnErr(termbox.Flush())
-}
-
-func (v *viewer) resetLastLine() {
-	select {
-	case v.lastLineControl <- struct{}{}:
-	}
 }
 
 func (v *viewer) refill() {
