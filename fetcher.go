@@ -3,15 +3,16 @@ package dlog
 import (
 	"bufio"
 	"context"
-	"dlog/ansi"
-	"dlog/filters"
-	"dlog/logging"
 	"fmt"
 	"io"
 	"os"
 	"sort"
 	"sync"
 	"time"
+
+	"dlog/ansi"
+	"dlog/filters"
+	"dlog/logging"
 )
 
 type Fetcher struct {
@@ -27,6 +28,7 @@ type Fetcher struct {
 	filtersEnabled   bool
 }
 
+//goland:noinspection GoSnakeCaseUsage
 const (
 	POS_UNKNOWN      = -2
 	POS_FILTERED_OUT = -1
@@ -47,6 +49,7 @@ func (l Pos) String() string {
 	return fmt.Sprintf("%d", l.Line+1)
 }
 
+//goland:noinspection GoSnakeCaseUsage
 var POS_NOT_FOUND = Pos{-1, -1}
 
 type PosLine struct {
@@ -137,12 +140,14 @@ func (f *Fetcher) seek(offset Offset) {
 	if f.lineReaderOffset == offset && f.lineReader != nil {
 		return // We are already there
 	}
-	_, _ = f.reader.Seek(int64(offset), io.SeekStart)
+	_, err := f.reader.Seek(int64(offset), io.SeekStart)
+	logging.LogOnErr(err)
+
 	f.lineReader = bufio.NewReaderSize(f.reader, 64*1024)
 	f.lineReaderOffset = offset
 }
 
-//reads and returns one Line, position and error, which can only be io.EOF, otherwise panics
+// reads and returns one Line, position and error, which can only be io.EOF, otherwise panics
 func (f *Fetcher) readline() ([]byte, Offset, error) {
 	str, err := f.lineReader.ReadBytes('\n')
 	startingOffset := f.lineReaderOffset
@@ -152,7 +157,7 @@ func (f *Fetcher) readline() ([]byte, Offset, error) {
 		}
 	}
 	if err == nil {
-		return str[:len(str)-1], startingOffset, err //TODO: Handle \r for windows logs?
+		return str[:len(str)-1], startingOffset, err // TODO: Handle \r for windows logs?
 	} else if err == io.EOF {
 		return str, startingOffset, err
 	} else {
@@ -176,7 +181,7 @@ func (f *Fetcher) lineBuilder(ctx context.Context) (chan<- PosLine, <-chan Line)
 			wg.Wait()
 			for i := 0; i < bLen; i++ {
 				if buffer[i].Pos.Line == POS_FILTERED_OUT {
-					continue //filtered out
+					continue // filtered out
 				}
 				select {
 				case lines <- buffer[i]:
@@ -194,7 +199,7 @@ func (f *Fetcher) lineBuilder(ctx context.Context) (chan<- PosLine, <-chan Line)
 			case <-ctx.Done():
 				return
 			case l, ok = <-feeder:
-				if !ok { //feeder closed
+				if !ok { // feeder closed
 					return
 				}
 				wg.Add(1)
@@ -274,7 +279,7 @@ func (f *Fetcher) Get(ctx context.Context, from Pos) <-chan Line {
 	}()
 	go func() {
 		wg.Wait()
-		for range lines { //draining lines, will act as lock for linebuilder
+		for range lines { // draining lines, will act as lock for linebuilder
 		}
 		f.lock.Unlock()
 	}()
@@ -375,7 +380,7 @@ func (f *Fetcher) lastOffset() Offset {
 const fetchBackStep = 64 * 1024
 
 func (f *Fetcher) GetBack(ctx context.Context, fromPos Pos) <-chan Line {
-	//f.lock.Lock()
+	// f.lock.Lock()
 	ret := make(chan Line, 500)
 	tmpLines := make([]PosLine, fetchBackStep/20) // Presuming, that average line > 20 cols. Otherwise - append will increase underlying array
 	var l Line
@@ -388,7 +393,7 @@ func (f *Fetcher) GetBack(ctx context.Context, fromPos Pos) <-chan Line {
 	lineAssign := fromPos.Line
 	from := fromPos.Offset
 	go func(lineAssign LineNo) {
-		//defer f.lock.Unlock()
+		// defer f.lock.Unlock()
 		defer close(ret)
 		for {
 			if from < 0 {
@@ -398,7 +403,7 @@ func (f *Fetcher) GetBack(ctx context.Context, fromPos Pos) <-chan Line {
 			lineOffset, err = f.findLine(from - fetchBackStep)
 			if err == io.EOF || lineOffset > fromPos.Offset {
 				// line longer then 64k
-				from = from - fetchBackStep
+				from -= fetchBackStep
 				continue
 			}
 			f.lock.Lock()
@@ -421,20 +426,20 @@ func (f *Fetcher) GetBack(ctx context.Context, fromPos Pos) <-chan Line {
 				if fromPos.Line > 0 {
 					tmpLines[i].Line = lineAssign
 					lineAssign--
-					//logging.Debug("assigned line", tmpLines[i].Line)
+					// logging.Debug("assigned line", tmpLines[i].Line)
 				}
 				l = f.filteredLine(tmpLines[i])
-				if l.Pos.Line == POS_FILTERED_OUT { //filtered out
+				if l.Pos.Line == POS_FILTERED_OUT { // filtered out
 					continue
 				}
 				select {
-				case ret <- l: //TODO: paralellize
+				case ret <- l: // TODO: paralellize
 				case <-ctx.Done():
 					f.lock.Unlock()
 					return
 				}
 			}
-			from = from - fetchBackStep
+			from -= fetchBackStep
 			f.lock.Unlock()
 		}
 	}(lineAssign)

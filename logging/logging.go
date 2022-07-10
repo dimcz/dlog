@@ -3,10 +3,18 @@ package logging
 import (
 	"log"
 	"os"
+	"path/filepath"
 	"time"
-
-	"dlog/config"
 )
+
+var DebugDisabled = true
+var DebugConfigPath = filepath.Join(os.TempDir(), "debug.log")
+
+func init() {
+	if len(os.Getenv("DEBUG")) > 0 {
+		DebugDisabled = false
+	}
+}
 
 func LogOnErr(err error) {
 	if err != nil {
@@ -14,21 +22,19 @@ func LogOnErr(err error) {
 	}
 }
 
-func Debug(l ...any) {
-	if !config.Config.Enabled {
+func Debug(l ...interface{}) {
+	if DebugDisabled {
 		return
 	}
 
-	f, err := os.OpenFile(config.Config.LogPath, os.O_RDWR|os.O_CREATE|os.O_APPEND, os.FileMode(0600))
+	f, err := os.OpenFile(DebugConfigPath, os.O_RDWR|os.O_CREATE|os.O_APPEND, os.FileMode(0600))
 	if err != nil {
 		log.Println(err)
 
 		return
 	}
 
-	defer func(f *os.File) {
-		_ = f.Close()
-	}(f)
+	defer LogOnErr(f.Close())
 
 	log.SetOutput(f)
 	log.Println(l...)

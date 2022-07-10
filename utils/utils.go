@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+
+	"dlog/logging"
 )
 
 func Check(e error) {
@@ -15,6 +17,7 @@ func Check(e error) {
 	}
 }
 
+//goland:noinspection GoUnusedExportedFunction
 func Max(a, b int) int {
 	if a > b {
 		return a
@@ -31,6 +34,7 @@ func Min(a, b int) int {
 	return a
 }
 
+//goland:noinspection GoUnusedExportedFunction
 func Max64(a, b int64) int64 {
 	if a > b {
 		return a
@@ -60,7 +64,7 @@ func OpenRewrite(path string) *os.File {
 	}
 
 	if err = openFile(); os.IsExist(err) {
-		_ = os.Remove(path)
+		logging.LogOnErr(os.Remove(path))
 		err = openFile()
 	}
 
@@ -123,12 +127,6 @@ func ExitOnErr(err error) {
 	}
 }
 
-func MakeCacheFile(fn string) (f *os.File, err error) {
-	if fn == "" {
-		f, err = ioutil.TempFile(os.TempDir(), "dlog_")
-	} else {
-		f = OpenRewrite(fn)
-	}
-
-	return
+func MakeCacheFile() (f *os.File, err error) {
+	return ioutil.TempFile(os.TempDir(), "dlog_")
 }

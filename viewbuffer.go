@@ -133,7 +133,7 @@ func (b *viewBuffer) shift(direction int) {
 			b.backFill()
 		}
 
-		b.pos = b.pos + direction
+		b.pos += direction
 		if b.pos < 0 {
 			b.pos = 0
 		}
@@ -146,9 +146,11 @@ func (b *viewBuffer) shift(direction int) {
 	// if len(b.buffer)
 	downShift := func() bool {
 		if b.pos+direction < len(b.buffer)-1 {
-			b.pos = b.pos + direction
+			b.pos += direction
+
 			return true
 		}
+
 		return false
 	}
 

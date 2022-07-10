@@ -85,7 +85,7 @@ func (d *Docker) loadLogs(wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	if d.reader != nil {
-		_ = d.reader.Close()
+		logging.LogOnErr(d.reader.Close())
 	}
 
 	var err error
@@ -122,10 +122,10 @@ func (d *Docker) getNextContainer() {
 	d.current = c
 
 	if d.reader != nil {
-		_ = d.reader.Close()
+		logging.LogOnErr(d.reader.Close())
 	}
 
-	_ = d.out.Truncate(0)
+	logging.LogOnErr(d.out.Truncate(0))
 }
 
 func (d *Docker) getPrevContainer() {
@@ -136,8 +136,8 @@ func (d *Docker) getPrevContainer() {
 	d.current = c
 
 	if d.reader != nil {
-		_ = d.reader.Close()
+		logging.LogOnErr(d.reader.Close())
 	}
 
-	_ = d.out.Truncate(0)
+	logging.LogOnErr(d.out.Truncate(0))
 }

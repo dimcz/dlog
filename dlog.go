@@ -6,7 +6,7 @@ import (
 	"os"
 	"sync"
 
-	"dlog/config"
+	"dlog/logging"
 	"dlog/utils"
 )
 
@@ -39,7 +39,10 @@ func (d *Dlog) Display() {
 
 func (d *Dlog) InitFetcher() {
 	d.fetcher = NewFetcher(d.ctx, d.file)
-	_, _ = d.file.Seek(0, io.SeekStart)
+
+	_, err := d.file.Seek(0, io.SeekStart)
+	logging.LogOnErr(err)
+
 	d.fetcher.seek(0)
 }
 
@@ -63,11 +66,13 @@ func (d *Dlog) reloadFetcher() {
 }
 
 func (d *Dlog) Shutdown() {
-	_ = d.docker.Close()
+	logging.LogOnErr(d.docker.Close())
+
 	d.cancel()
 	d.wg.Wait()
-	_ = d.file.Close()
-	_ = os.Remove(d.file.Name())
+
+	logging.LogOnErr(d.file.Close())
+	logging.LogOnErr(os.Remove(d.file.Name()))
 }
 
 func New(f *os.File) *Dlog {
@@ -82,7 +87,7 @@ func New(f *os.File) *Dlog {
 }
 
 func NewWithDocker() (*Dlog, error) {
-	cacheFile, err := utils.MakeCacheFile(config.Config.CachePath)
+	cacheFile, err := utils.MakeCacheFile()
 	if err != nil {
 		return nil, err
 	}

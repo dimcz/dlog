@@ -29,7 +29,7 @@ type viewer struct {
 	wrap          bool
 	fetcher       *Fetcher
 	focus         Focusing
-	info          infobar
+	info          infoBar
 	forwardSearch bool
 	search        []rune
 	buffer        viewBuffer
@@ -43,6 +43,7 @@ type viewer struct {
 
 type action uint
 
+//goland:noinspection GoSnakeCaseUsage,GoUnusedConst
 const (
 	NO_ACTION action = iota
 	ACTION_QUIT
@@ -263,13 +264,13 @@ func ToTermboxAttr(attr ansi.RuneAttr) (fg, bg termbox.Attribute) {
 	if attr.Fg >= 30 && attr.Fg <= 37 {
 		fg = termbox.Attribute(attr.Fg - 30 + 1)
 		if style == termbox.AttrBold {
-			fg = fg | 1<<3
+			fg |= 1 << 3
 		}
 	}
 	if attr.Bg >= 40 && attr.Bg <= 47 {
 		bg = termbox.Attribute(attr.Bg - 40 + 1)
 		if style == termbox.AttrBold {
-			bg = bg | 1<<3
+			bg |= 1 << 3
 		}
 	}
 
@@ -283,7 +284,7 @@ func ToTermboxAttr(attr ansi.RuneAttr) (fg, bg termbox.Attribute) {
 		bg = termbox.Attribute(attr.Bg)
 	}
 
-	fg = fg | style
+	fg |= style
 
 	return fg, bg
 }
@@ -320,7 +321,8 @@ func (v *viewer) getWrapCount() int {
 }
 
 func (v *viewer) draw() {
-	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
+	logging.LogOnErr(termbox.Clear(termbox.ColorDefault, termbox.ColorDefault))
+
 	var chars []rune
 	var attrs []ansi.RuneAttr
 	var attr ansi.RuneAttr
@@ -364,14 +366,14 @@ func (v *viewer) draw() {
 				hlChars--
 			}
 			if line.Highlighted {
-				highlightStyle = highlightStyle | termbox.AttrUnderline
-				attr.Bg = attr.Bg | ansi.FgColor(ansi.ColorYellow)
+				highlightStyle |= termbox.AttrUnderline
+				attr.Bg |= ansi.FgColor(ansi.ColorYellow)
 			}
 
 			fg, bg := ToTermboxAttr(attr)
 
 			if highlightStyle != termbox.Attribute(0) {
-				fg = fg | highlightStyle
+				fg |= highlightStyle
 			}
 			termbox.SetCell(tx, ty, char, fg, bg)
 			tx += runewidth.RuneWidth(char)
@@ -391,7 +393,8 @@ func (v *viewer) draw() {
 	}
 
 	v.info.draw()
-	_ = termbox.Flush()
+
+	logging.LogOnErr(termbox.Flush())
 }
 
 func (v *viewer) navigate(direction int) {
@@ -436,7 +439,8 @@ func (v *viewer) navigateLeft() {
 func (v *viewer) resetFocus() {
 	v.focus = v
 	termbox.HideCursor()
-	termbox.Flush()
+
+	logging.LogOnErr(termbox.Flush())
 }
 
 func (v *viewer) onUserAction() {
@@ -560,7 +564,7 @@ func (v *viewer) resize(width, height int) {
 
 type infobarRequest struct {
 	str  []rune
-	mode infobarMode
+	mode infoBarMode
 }
 
 var requestSearch = make(chan infobarRequest)
@@ -570,8 +574,7 @@ var requestStatusUpdate = make(chan LineNo)
 var requestKeepCharsChange = make(chan int)
 
 func (v *viewer) termGui(terminalName string) {
-	err := termbox.Init()
-	if err != nil {
+	if err := termbox.Init(); err != nil {
 		panic(err)
 	}
 	defer termbox.Close()
@@ -585,7 +588,8 @@ func (v *viewer) termGui(terminalName string) {
 
 	termbox.SetInputMode(termbox.InputEsc)
 	termbox.SetOutputMode(termbox.Output256)
-	v.info = infobar{
+
+	v.info = infoBar{
 		y:              0,
 		width:          0,
 		currentLine:    &v.buffer.originalPos,
@@ -643,7 +647,7 @@ loop:
 				}
 			case charChange := <-requestKeepCharsChange:
 				if v.keepChars+charChange >= 0 {
-					v.keepChars = v.keepChars + charChange
+					v.keepChars += charChange
 				}
 				v.draw()
 			}
@@ -658,7 +662,7 @@ func (v *viewer) initScreen() {
 
 	str := []rune("Waiting log data...")
 	tx = tx/2 - len(str)/2
-	ty = ty / 2
+	ty /= 2
 	for i := 0; i < len(str); i++ {
 		termbox.SetCell(tx+i, ty, str[i], termbox.ColorYellow, termbox.ColorDefault)
 	}
@@ -699,12 +703,16 @@ func (v *viewer) saveFiltered(filename string) {
 	v.info.setMessage(ibMessage{str: "Saving...", color: termbox.ColorYellow})
 	for l := range lines {
 		// TODO: Re-Add colors information
-		_, _ = writer.WriteString(string(l.Str.Runes))
-		_ = writer.WriteByte('\n')
+		_, err = writer.WriteString(string(l.Str.Runes))
+		logging.LogOnErr(err)
+
+		logging.LogOnErr(writer.WriteByte('\n'))
 	}
-	_ = writer.Flush()
+	logging.LogOnErr(writer.Flush())
+
 	v.info.setMessage(ibMessage{str: fmt.Sprintf("Done! %s", filename), color: termbox.ColorGreen})
-	_ = f.Close()
+
+	logging.LogOnErr(f.Close())
 }
 
 func (v *viewer) refreshIfEmpty(ctx context.Context) {

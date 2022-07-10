@@ -1,14 +1,17 @@
 package dlog
 
 import (
-	"dlog/logging"
 	"time"
+
+	"dlog/logging"
 
 	"github.com/nsf/termbox-go"
 )
 
+//goland:noinspection GoSnakeCaseUsage
 type ALT_KEYMAP uint
 
+//goland:noinspection GoSnakeCaseUsage
 const (
 	NOT_ESCAPE ALT_KEYMAP = iota
 	ESC

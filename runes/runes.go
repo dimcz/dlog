@@ -50,6 +50,7 @@ func IndexRune(runestack []rune, sub rune) int {
 	return -1
 }
 
+//goland:noinspection GoUnusedExportedFunction
 func IndexAll(runestack, sub []rune) (indices []int) {
 	if len(sub) == 0 {
 		return

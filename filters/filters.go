@@ -2,13 +2,15 @@ package filters
 
 import (
 	"bufio"
-	"dlog/runes"
-	"dlog/utils"
 	"errors"
 	"os"
 	"regexp"
 	"strings"
 	"unicode"
+
+	"dlog/logging"
+	"dlog/runes"
+	"dlog/utils"
 
 	"github.com/nsf/termbox-go"
 )
@@ -17,6 +19,7 @@ type FilterResult uint8
 
 const FilterMinLength int = 2
 
+//goland:noinspection GoUnusedConst
 const (
 	FilterNoaction FilterResult = iota
 	FilterIncluded
@@ -24,6 +27,7 @@ const (
 	FilterHighlighted
 )
 
+//goland:noinspection GoUnusedType
 type filter interface {
 	takeAction(str []rune, currentAction FilterResult) FilterResult
 }
@@ -78,7 +82,7 @@ func init() {
 
 }
 
-// Follows regex return value pattern. nil if not found, slice of range if found
+// SearchFunc Follows regex return value pattern. nil if not found, slice of range if found
 // Filter does not really need it, but highlighting also must search and requires it
 type SearchFunc func(sub []rune) []int
 type ActionFunc func(str []rune, currentAction FilterResult) FilterResult
@@ -90,7 +94,7 @@ type Filter struct {
 	TakeAction ActionFunc
 }
 
-var ErrBadFilterDefinition = errors.New("Bad filter definition")
+var ErrBadFilterDefinition = errors.New("bad filter definition")
 
 func NewFilter(sub []rune, action FilterAction, searchType SearchType) (*Filter, error) {
 	ff, err := GetSearchFunc(searchType, sub)
@@ -280,7 +284,7 @@ func ParseFiltersFile(filename string) ([]*Filter, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer logging.LogOnErr(f.Close())
 	scanner := bufio.NewScanner(f)
 
 	var filters []*Filter
@@ -303,6 +307,7 @@ func ParseFiltersFile(filename string) ([]*Filter, error) {
 	return filters, nil
 }
 
+//goland:noinspection GoUnusedExportedFunction
 func ParseFiltersOpt(optStr string) ([]*Filter, error) {
 	re := regexp.MustCompile("([^;]+);?")
 	var filters []*Filter

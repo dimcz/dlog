@@ -6,21 +6,16 @@ import (
 	"os"
 
 	"dlog"
-	"dlog/config"
 	"dlog/utils"
 )
 
 const VERSION = "1.0.0"
 
 func main() {
-	showVersion := false
-
-	flag.BoolVar(&config.Config.Enabled, "debug", false,
-		"Enables debug messages, written to /tmp/dlog.log")
-	flag.BoolVar(&showVersion, "version", false, "Print version information")
+	showVersion := flag.Bool("version", false, "Print version information")
 	flag.Parse()
 
-	if showVersion {
+	if *showVersion {
 		fmt.Println("Dlog Version: ", VERSION)
 		os.Exit(0)
 	}
