@@ -39,6 +39,8 @@ type viewer struct {
 
 	keyArrowRight func()
 	keyArrowLeft  func()
+
+	lastLineControl chan struct{}
 }
 
 type action uint
@@ -108,6 +110,8 @@ func NewViewer(opts ...ViewOptionsFunc) *viewer {
 	if v.keyArrowRight == nil {
 		v.keyArrowRight = v.navigateRight
 	}
+
+	v.lastLineControl = make(chan struct{}, 1)
 
 	return v
 }
@@ -657,6 +661,8 @@ loop:
 
 func (v *viewer) initScreen() {
 	logging.LogOnErr(termbox.Clear(termbox.ColorDefault, termbox.ColorDefault))
+	v.buffer.reset(Pos{0, 0})
+	v.resetLastLine()
 
 	tx, ty := termbox.Size()
 
@@ -668,6 +674,12 @@ func (v *viewer) initScreen() {
 	}
 
 	logging.LogOnErr(termbox.Flush())
+}
+
+func (v *viewer) resetLastLine() {
+	select {
+	case v.lastLineControl <- struct{}{}:
+	}
 }
 
 func (v *viewer) refill() {
@@ -746,6 +758,9 @@ func (v *viewer) updateLastLine(ctx context.Context) {
 loop:
 	for {
 		select {
+		case <-v.lastLineControl:
+			lastLine = Pos{0, 0}
+			delay = 10 * time.Millisecond
 		case <-ctx.Done():
 			break loop
 		case <-time.After(delay):

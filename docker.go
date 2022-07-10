@@ -16,6 +16,8 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 )
 
+const InitialLogTails = 1000
+
 type Container struct {
 	ID   string
 	Name string
@@ -76,12 +78,17 @@ func (d *Docker) Close() error {
 }
 
 func (d *Docker) fetchLogs(wg *sync.WaitGroup) {
-	wg.Add(1)
+	opts := types.ContainerLogsOptions{
+		ShowStderr: true,
+		ShowStdout: true,
+		Timestamps: true,
+	}
 
-	go d.loadLogs(wg)
+	wg.Add(1)
+	go d.loadLogs(wg, opts)
 }
 
-func (d *Docker) loadLogs(wg *sync.WaitGroup) {
+func (d *Docker) loadLogs(wg *sync.WaitGroup, opts types.ContainerLogsOptions) {
 	defer wg.Done()
 
 	if d.reader != nil {
@@ -90,12 +97,9 @@ func (d *Docker) loadLogs(wg *sync.WaitGroup) {
 
 	var err error
 
-	d.reader, err = docker().ContainerLogs(context.Background(), d.containers[d.current].ID, types.ContainerLogsOptions{
-		ShowStderr: true,
-		ShowStdout: true,
-		Timestamps: true,
-		Follow:     true,
-	})
+	opts.Follow = true
+	// opts.Tail = strconv.Itoa(InitialLogTails)
+	d.reader, err = docker().ContainerLogs(context.Background(), d.containers[d.current].ID, opts)
 
 	if err != nil {
 		return

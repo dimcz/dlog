@@ -107,7 +107,9 @@ func NewFetcher(ctx context.Context, reader *os.File) *Fetcher {
 		lineReader:     bufio.NewReaderSize(reader, 64*1024),
 		filtersEnabled: true,
 	}
+
 	go f.gcMap(ctx)
+
 	return f
 }
 
@@ -345,6 +347,7 @@ func (f *Fetcher) SearchBackHighlighted(ctx context.Context, from Pos) (pos Pos)
 func (f *Fetcher) advanceLines(from Pos) PosLine {
 	f.lock.Lock()
 	defer f.lock.Unlock()
+
 	f.seek(from.Offset)
 	i := from.Line
 	ret := PosLine{Pos: from}
@@ -355,7 +358,7 @@ func (f *Fetcher) advanceLines(from Pos) PosLine {
 		}
 		ret.b, ret.Offset, ret.Line = str, offset, i
 		if err == io.EOF {
-			ret.b = ret.b[:len(ret.b)-1] // got no \n stripped, hacky, used only for saving map and it lacks error information
+			ret.b = ret.b[:len(ret.b)-1] // got no \n stripped, hacky, used only for saving map, and it lacks error information
 			return ret
 		}
 		if i >= 3500+from.Line {
@@ -368,7 +371,7 @@ func (f *Fetcher) advanceLines(from Pos) PosLine {
 func (f *Fetcher) lastOffset() Offset {
 	stat, err := f.reader.Stat()
 	if err != nil {
-		logging.Debug(fmt.Sprintf("Error retrieving stat from file: %s", err))
+		logging.Debug(fmt.Sprintf("error retrieving stat from file: %s", err))
 		return Offset(0)
 	}
 	if stat.Size() == 0 {

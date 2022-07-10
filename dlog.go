@@ -25,7 +25,8 @@ func (d *Dlog) GetFile() *os.File {
 }
 
 func (d *Dlog) Display() {
-	d.InitFetcher()
+	d.fetcher = NewFetcher(d.ctx, d.file)
+	d.resetFetcher()
 
 	d.v = NewViewer(
 		WithCtx(d.ctx),
@@ -37,9 +38,7 @@ func (d *Dlog) Display() {
 	d.v.termGui(d.docker.getName())
 }
 
-func (d *Dlog) InitFetcher() {
-	d.fetcher = NewFetcher(d.ctx, d.file)
-
+func (d *Dlog) resetFetcher() {
 	_, err := d.file.Seek(0, io.SeekStart)
 	logging.LogOnErr(err)
 
@@ -49,20 +48,19 @@ func (d *Dlog) InitFetcher() {
 func (d *Dlog) rightDirection() {
 	d.v.initScreen()
 	d.docker.getNextContainer()
-	d.reloadFetcher()
+	d.reload()
 }
 
 func (d *Dlog) leftDirection() {
 	d.v.initScreen()
 	d.docker.getPrevContainer()
-	d.reloadFetcher()
+	d.reload()
 }
 
-func (d *Dlog) reloadFetcher() {
-	d.wg.Wait()
+func (d *Dlog) reload() {
 	d.v.setTerminalName(d.docker.getName())
 	d.docker.fetchLogs(d.wg)
-	d.InitFetcher()
+	d.resetFetcher()
 }
 
 func (d *Dlog) Shutdown() {
