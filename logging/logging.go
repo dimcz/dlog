@@ -34,7 +34,12 @@ func Debug(l ...interface{}) {
 		return
 	}
 
-	defer LogOnErr(f.Close())
+	defer func(f *os.File) {
+		err := f.Close()
+		if err != nil {
+			log.Println(err)
+		}
+	}(f)
 
 	log.SetOutput(f)
 	log.Println(l...)
