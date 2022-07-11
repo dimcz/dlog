@@ -20,11 +20,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	if !dlog.CheckDaemon() {
-		fmt.Println("Can't connect to docker daemon")
-		os.Exit(1)
-	}
-
 	d, err := dlog.NewWithDocker()
 	utils.ExitOnErr(err)
 

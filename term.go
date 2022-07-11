@@ -529,6 +529,9 @@ func (v *viewer) processKey(ev termbox.Event) (a action) {
 		}
 	} else {
 		switch ev.Key {
+		case termbox.KeyEsc:
+			logging.Debug("got key quit")
+			return ACTION_QUIT
 		case termbox.KeyArrowDown:
 			v.navigate(+1)
 		case termbox.KeyArrowUp:
@@ -765,6 +768,7 @@ loop:
 			dataLine = v.fetcher.advanceLines(lastLine)
 			lastLine = dataLine.Pos
 			if lastLine != prevLine {
+				logging.Debug(fmt.Sprintf("new lines count: %d", lastLine.Line))
 				go termbox.Interrupt()
 				select {
 				case requestStatusUpdate <- lastLine.Line:

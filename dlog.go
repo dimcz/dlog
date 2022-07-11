@@ -64,7 +64,7 @@ func (d *Dlog) reload() {
 	logging.LogOnErr(d.docker.out.Truncate(0))
 
 	d.v.setTerminalName(d.docker.getName())
-	d.docker.fetchLogs(d.wg)
+	d.docker.logs()
 	d.resetFetcher()
 	d.v.navigateEnd()
 }
@@ -89,16 +89,18 @@ func New(f *memfile.File) *Dlog {
 
 func NewWithDocker() (*Dlog, error) {
 	fWR := memfile.New([]byte{})
-	dd, err := DockerSetup(fWR)
+
+	fRO := memfile.NewWithBuffer(fWR.Buffer())
+	d := New(fRO)
+
+	docker, err := DockerClient(d.ctx, fWR, fRO)
 	if err != nil {
 		return nil, err
 	}
 
-	fRO := memfile.NewWithBuffer(fWR.Buffer())
-	d := New(fRO)
-	d.docker = dd
+	d.docker = docker
 
-	dd.fetchLogs(d.wg)
+	docker.logs()
 
 	return d, nil
 }

@@ -75,6 +75,24 @@ func (fb *File) readAt(b []byte, off int64) (int, error) {
 	return n, nil
 }
 
+func (fb *File) Insert(b []byte) (int, error) {
+	fb.m.Lock()
+	defer fb.m.Unlock()
+
+	fb.buffer.bytes = append(b, fb.buffer.bytes...)
+	fb.i = len(fb.buffer.bytes)
+
+	return len(fb.buffer.bytes), nil
+}
+
+func (fb *File) GetLen() int {
+	return len(fb.buffer.bytes)
+}
+
+func (fb *File) SetLen(n int) {
+	fb.i = n
+}
+
 // Write writes len(b) bytes to the File.
 // It returns the number of bytes written and an error, if any.
 // If the current file offset is past the io.EOF, then the space in-between are
