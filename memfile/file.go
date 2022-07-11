@@ -147,7 +147,7 @@ func (fb *File) truncate(n int64) error {
 	case n < 0 || int64(int(n)) < n:
 		return errInvalid
 	case n <= int64(len(fb.buffer.bytes)):
-		fb.buffer.bytes = fb.buffer.bytes[:n]
+		fb.buffer.bytes = append([]byte{}, fb.buffer.bytes[:n]...)
 		return nil
 	default:
 		fb.buffer.bytes = append(fb.buffer.bytes, make([]byte, int(n)-len(fb.buffer.bytes))...)
