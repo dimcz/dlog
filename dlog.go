@@ -3,24 +3,23 @@ package dlog
 import (
 	"context"
 	"io"
-	"os"
 	"sync"
 
 	"dlog/logging"
-	"dlog/utils"
+	"dlog/memfile"
 )
 
 type Dlog struct {
 	wg      *sync.WaitGroup
 	ctx     context.Context
 	cancel  context.CancelFunc
-	file    *os.File
+	file    *memfile.File
 	fetcher *Fetcher
 	docker  *Docker
 	v       *viewer
 }
 
-func (d *Dlog) GetFile() *os.File {
+func (d *Dlog) GetFile() *memfile.File {
 	return d.file
 }
 
@@ -68,12 +67,9 @@ func (d *Dlog) Shutdown() {
 
 	d.cancel()
 	d.wg.Wait()
-
-	logging.LogOnErr(d.file.Close())
-	logging.LogOnErr(os.Remove(d.file.Name()))
 }
 
-func New(f *os.File) *Dlog {
+func New(f *memfile.File) *Dlog {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Dlog{
@@ -85,24 +81,17 @@ func New(f *os.File) *Dlog {
 }
 
 func NewWithDocker() (*Dlog, error) {
-	cacheFile, err := utils.MakeCacheFile()
+	fWR := memfile.New([]byte{})
+	dd, err := DockerSetup(fWR)
 	if err != nil {
 		return nil, err
 	}
 
-	f, err := os.Open(cacheFile.Name())
-	if err != nil {
-		return nil, err
-	}
+	fRO := memfile.NewWithBuffer(fWR.Buffer())
+	d := New(fRO)
+	d.docker = dd
 
-	d := New(f)
-
-	d.docker, err = DockerSetup(cacheFile)
-	if err != nil {
-		return nil, err
-	}
-
-	d.docker.fetchLogs(d.wg)
+	dd.fetchLogs(d.wg)
 
 	return d, nil
 }

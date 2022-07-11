@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"sort"
 	"sync"
 	"time"
@@ -13,12 +12,13 @@ import (
 	"dlog/ansi"
 	"dlog/filters"
 	"dlog/logging"
+	"dlog/memfile"
 )
 
 type Fetcher struct {
 	mLock            sync.RWMutex
 	lineMap          map[Offset]LineNo // caches Offset of some lines, meanwhile only last one, when available
-	reader           *os.File
+	reader           *memfile.File
 	lock             sync.RWMutex
 	lineReader       *bufio.Reader
 	lineReaderOffset Offset
@@ -33,6 +33,8 @@ const (
 	POS_UNKNOWN      = -2
 	POS_FILTERED_OUT = -1
 )
+
+const ChunkSize = 64 * 1024
 
 type Offset int64
 type LineNo int64
@@ -100,11 +102,11 @@ func (f *Fetcher) filteredLine(l PosLine) Line {
 
 }
 
-func NewFetcher(ctx context.Context, reader *os.File) *Fetcher {
+func NewFetcher(ctx context.Context, reader *memfile.File) *Fetcher {
 	f := &Fetcher{
 		reader:         reader,
 		lineMap:        map[Offset]LineNo{0: 0},
-		lineReader:     bufio.NewReaderSize(reader, 64*1024),
+		lineReader:     bufio.NewReaderSize(reader, ChunkSize),
 		filtersEnabled: true,
 	}
 
@@ -145,7 +147,7 @@ func (f *Fetcher) seek(offset Offset) {
 	_, err := f.reader.Seek(int64(offset), io.SeekStart)
 	logging.LogOnErr(err)
 
-	f.lineReader = bufio.NewReaderSize(f.reader, 64*1024)
+	f.lineReader = bufio.NewReaderSize(f.reader, ChunkSize)
 	f.lineReaderOffset = offset
 }
 

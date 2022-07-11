@@ -5,18 +5,15 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"os"
 	"strings"
 	"sync"
 
 	"dlog/logging"
+	"dlog/memfile"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/stdcopy"
 )
-
-const InitialLogTails = 1000
 
 type Container struct {
 	ID   string
@@ -24,7 +21,7 @@ type Container struct {
 }
 
 type Docker struct {
-	out        *os.File
+	out        *memfile.File
 	containers []Container
 	current    int
 	reader     io.ReadCloser
@@ -49,7 +46,7 @@ func CheckDaemon() bool {
 	return true
 }
 
-func DockerSetup(out *os.File) (*Docker, error) {
+func DockerSetup(out *memfile.File) (*Docker, error) {
 	ctx := context.Background()
 
 	containers, err := docker().ContainerList(ctx, types.ContainerListOptions{})
@@ -98,7 +95,6 @@ func (d *Docker) loadLogs(wg *sync.WaitGroup, opts types.ContainerLogsOptions) {
 	var err error
 
 	opts.Follow = true
-	// opts.Tail = strconv.Itoa(InitialLogTails)
 	d.reader, err = docker().ContainerLogs(context.Background(), d.containers[d.current].ID, opts)
 
 	if err != nil {
@@ -106,7 +102,7 @@ func (d *Docker) loadLogs(wg *sync.WaitGroup, opts types.ContainerLogsOptions) {
 	}
 
 	for {
-		if _, err := stdcopy.StdCopy(d.out, d.out, d.reader); err != nil {
+		if _, err := io.CopyN(d.out, d.reader, ChunkSize); err != nil {
 			return
 		}
 	}

@@ -708,7 +708,7 @@ func (v *viewer) saveFiltered(filename string) {
 	}
 	ctx := context.TODO() // TODO: Use cancel once viewer will be non blocked
 	lines := v.fetcher.Get(ctx, Pos{0, 0})
-	writer := bufio.NewWriterSize(f, 64*1024)
+	writer := bufio.NewWriterSize(f, ChunkSize)
 	v.info.setMessage(ibMessage{str: "Saving...", color: termbox.ColorYellow})
 	for l := range lines {
 		// TODO: Re-Add colors information
