@@ -10,6 +10,7 @@ import (
 
 	"dlog/logging"
 	"dlog/memfile"
+	"github.com/docker/docker/pkg/stdcopy"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
@@ -86,7 +87,10 @@ func (d *Docker) fetchLogs(wg *sync.WaitGroup) {
 }
 
 func (d *Docker) loadLogs(wg *sync.WaitGroup, opts types.ContainerLogsOptions) {
-	defer wg.Done()
+	defer func() {
+		logging.Debug("exit from loadLogs")
+		wg.Done()
+	}()
 
 	if d.reader != nil {
 		logging.LogOnErr(d.reader.Close())
@@ -102,9 +106,10 @@ func (d *Docker) loadLogs(wg *sync.WaitGroup, opts types.ContainerLogsOptions) {
 	}
 
 	for {
-		if _, err := io.CopyN(d.out, d.reader, ChunkSize); err != nil {
+		if _, err := stdcopy.StdCopy(d.out, d.out, d.reader); err != nil {
 			return
 		}
+
 	}
 }
 
@@ -120,12 +125,6 @@ func (d *Docker) getNextContainer() {
 		c = 0
 	}
 	d.current = c
-
-	if d.reader != nil {
-		logging.LogOnErr(d.reader.Close())
-	}
-
-	logging.LogOnErr(d.out.Truncate(0))
 }
 
 func (d *Docker) getPrevContainer() {
@@ -134,10 +133,4 @@ func (d *Docker) getPrevContainer() {
 		c = len(d.containers) - 1
 	}
 	d.current = c
-
-	if d.reader != nil {
-		logging.LogOnErr(d.reader.Close())
-	}
-
-	logging.LogOnErr(d.out.Truncate(0))
 }

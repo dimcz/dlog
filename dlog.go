@@ -57,9 +57,16 @@ func (d *Dlog) leftDirection() {
 }
 
 func (d *Dlog) reload() {
+	if d.docker.reader != nil {
+		logging.LogOnErr(d.docker.reader.Close())
+	}
+
+	logging.LogOnErr(d.docker.out.Truncate(0))
+
 	d.v.setTerminalName(d.docker.getName())
 	d.docker.fetchLogs(d.wg)
 	d.resetFetcher()
+	d.v.navigateEnd()
 }
 
 func (d *Dlog) Shutdown() {
