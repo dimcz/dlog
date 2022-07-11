@@ -1,11 +1,10 @@
-module dlog
+module github.com/dimcz/dlog
 
 go 1.18
 
 require (
 	code.cloudfoundry.org/bytefmt v0.0.0-20211005130812-5bb3c17173e5
 	github.com/docker/docker v20.10.17+incompatible
-	github.com/gizak/termui/v3 v3.1.0
 	github.com/mattn/go-runewidth v0.0.13
 	github.com/nsf/termbox-go v1.1.1
 )
