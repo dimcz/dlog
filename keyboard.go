@@ -3,7 +3,7 @@ package dlog
 import (
 	"time"
 
-	"dlog/logging"
+	"github.com/dimcz/dlog/logging"
 
 	"github.com/nsf/termbox-go"
 )

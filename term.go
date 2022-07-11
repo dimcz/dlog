@@ -11,10 +11,10 @@ import (
 	"sync"
 	"time"
 
-	"dlog/ansi"
-	"dlog/filters"
-	"dlog/logging"
-	"dlog/utils"
+	"github.com/dimcz/dlog/ansi"
+	"github.com/dimcz/dlog/filters"
+	"github.com/dimcz/dlog/logging"
+	"github.com/dimcz/dlog/utils"
 
 	"code.cloudfoundry.org/bytefmt"
 	"github.com/mattn/go-runewidth"

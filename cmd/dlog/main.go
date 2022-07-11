@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"dlog"
-	"dlog/utils"
+	"github.com/dimcz/dlog"
+	"github.com/dimcz/dlog/utils"
 )
 
 const VERSION = "1.0.0"

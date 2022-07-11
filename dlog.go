@@ -5,8 +5,8 @@ import (
 	"io"
 	"sync"
 
-	"dlog/logging"
-	"dlog/memfile"
+	"github.com/dimcz/dlog/logging"
+	"github.com/dimcz/dlog/memfile"
 )
 
 type Dlog struct {
