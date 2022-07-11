@@ -21,6 +21,7 @@ type Astring struct {
 
 type Style uint8
 
+//goland:noinspection GoUnusedConst
 const (
 	StyleNormal Style = iota
 	StyleBold
@@ -28,6 +29,7 @@ const (
 
 type Color uint8
 
+//goland:noinspection GoUnusedConst
 const (
 	ColorBlack Color = iota
 	ColorRed
@@ -43,6 +45,7 @@ func FgColor(color Color) uint8 {
 	return uint8(color) + 30
 }
 
+//goland:noinspection GoUnusedExportedFunction
 func BgColor(color Color) uint8 {
 	return uint8(color) + 40
 }
