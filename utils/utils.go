@@ -3,7 +3,6 @@ package utils
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -125,8 +124,4 @@ func ExitOnErr(err error) {
 		_, _ = fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-}
-
-func MakeCacheFile() (f *os.File, err error) {
-	return ioutil.TempFile(os.TempDir(), "dlog_")
 }
