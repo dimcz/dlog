@@ -7,7 +7,7 @@ import (
 	"os/user"
 	"path/filepath"
 
-	"github.com/dimcz/dlog/logging"
+	"dlog/logging"
 )
 
 func Check(e error) {

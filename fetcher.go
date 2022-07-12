@@ -9,10 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dimcz/dlog/ansi"
-	"github.com/dimcz/dlog/filters"
-	"github.com/dimcz/dlog/logging"
-	"github.com/dimcz/dlog/memfile"
+	"dlog/ansi"
+	"dlog/filters"
+	"dlog/logging"
+	"dlog/memfile"
 )
 
 type Fetcher struct {

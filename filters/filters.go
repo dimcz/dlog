@@ -8,9 +8,9 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/dimcz/dlog/logging"
-	"github.com/dimcz/dlog/runes"
-	"github.com/dimcz/dlog/utils"
+	"dlog/logging"
+	"dlog/runes"
+	"dlog/utils"
 
 	"github.com/nsf/termbox-go"
 )

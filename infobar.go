@@ -9,10 +9,10 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/dimcz/dlog/filters"
-	"github.com/dimcz/dlog/logging"
-	"github.com/dimcz/dlog/runes"
-	"github.com/dimcz/dlog/utils"
+	"dlog/filters"
+	"dlog/logging"
+	"dlog/runes"
+	"dlog/utils"
 
 	"github.com/nsf/termbox-go"
 )

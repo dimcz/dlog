@@ -1,6 +1,6 @@
 package runes
 
-import "github.com/dimcz/dlog/logging"
+import "dlog/logging"
 
 func InsertRune(runes []rune, r rune, pos int) []rune {
 	runes = append(runes, 0)

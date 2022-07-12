@@ -5,8 +5,8 @@ import (
 	"io"
 	"sync"
 
-	"github.com/dimcz/dlog/filters"
-	"github.com/dimcz/dlog/logging"
+	"dlog/filters"
+	"dlog/logging"
 )
 
 type viewBuffer struct {

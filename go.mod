@@ -1,4 +1,4 @@
-module github.com/dimcz/dlog
+module dlog
 
 go 1.18
 

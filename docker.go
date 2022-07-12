@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dimcz/dlog/logging"
-	"github.com/dimcz/dlog/memfile"
+	"dlog/logging"
+	"dlog/memfile"
 
 	"github.com/docker/docker/pkg/stdcopy"
 
@@ -35,6 +35,8 @@ type Docker struct {
 }
 
 func (d *Docker) retrieveLogs(opts types.ContainerLogsOptions) error {
+	defer logging.Timeit("retrieveLogs")()
+
 	fd, err := d.cli.ContainerLogs(d.ctx, d.containers[d.current].ID, opts)
 	if err != nil {
 		log.Fatal(err)
@@ -127,6 +129,8 @@ func (d *Docker) logs() {
 }
 
 func (d *Docker) append(t time.Time) {
+	defer logging.Timeit("append logs")()
+
 	end := t.Add(-1)
 	var start time.Time
 
@@ -173,6 +177,8 @@ func DockerClient(ctx context.Context, out, in *memfile.File) (*Docker, error) {
 }
 
 func retrieveContainers(cli *client.Client) (containers []Container, err error) {
+	defer logging.Timeit("retrieveContainers")()
+
 	list, err := cli.ContainerList(context.Background(), types.ContainerListOptions{})
 	if err != nil {
 		return nil, err
@@ -186,7 +192,9 @@ func retrieveContainers(cli *client.Client) (containers []Container, err error) 
 }
 
 func (d *Docker) getName() string {
-	return fmt.Sprintf("%s (ID:%s)",
+	return fmt.Sprintf("(%d/%d) %s (ID:%s)",
+		d.current+1,
+		len(d.containers),
 		strings.Replace(d.containers[d.current].Name, "/", "", 1),
 		d.containers[d.current].ID[:12])
 }

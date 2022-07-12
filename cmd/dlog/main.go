@@ -1,15 +1,15 @@
 package main
 
 import (
+	"dlog"
 	"flag"
 	"fmt"
 	"os"
 
-	"github.com/dimcz/dlog"
-	"github.com/dimcz/dlog/utils"
+	"dlog/utils"
 )
 
-const VERSION = "1.0.0"
+const VERSION = "1.1.2"
 
 func main() {
 	showVersion := flag.Bool("version", false, "Print version information")
