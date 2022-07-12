@@ -28,8 +28,7 @@ type Container struct {
 
 type Docker struct {
 	height     int
-	out        *memfile.File
-	in         *memfile.File
+	file       *memfile.File
 	containers []Container
 	current    int
 	cli        *client.Client
@@ -60,7 +59,7 @@ func (d *Docker) followFrom(t int64) {
 		logging.LogOnErr(fd.Close())
 	}(fd)
 
-	if _, err := stdcopy.StdCopy(d.out, d.out, fd); err != nil {
+	if _, err := stdcopy.StdCopy(d.file, d.file, fd); err != nil {
 		return
 	}
 }
@@ -120,7 +119,7 @@ func (d *Docker) appendSince(t int64) {
 	}
 }
 
-func DockerClient(ctx context.Context, height int, out, in *memfile.File) (*Docker, error) {
+func DockerClient(ctx context.Context, height int, file *memfile.File) (*Docker, error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		return nil, err
@@ -138,8 +137,7 @@ func DockerClient(ctx context.Context, height int, out, in *memfile.File) (*Dock
 	return &Docker{
 		height:        height,
 		parentContext: ctx,
-		out:           out,
-		in:            in,
+		file:          file,
 		cli:           cli,
 		containers:    containers,
 		wg:            new(sync.WaitGroup),
@@ -214,11 +212,9 @@ func (d *Docker) retrieveLogs(options types.ContainerLogsOptions) (*memfile.File
 
 	logging.Debug(fmt.Sprintf("retrieveLogs: got buffer array with length %d, write %d", len(mf.Bytes()), w))
 
-	if _, err := d.out.Insert(mf.Bytes()); err != nil {
+	if _, err := d.file.Insert(mf.Bytes()); err != nil {
 		return nil, err
 	}
-
-	d.in.SetLen(d.out.GetLen())
 
 	logging.Debug(fmt.Sprintf("retrieveLogs: after insert, array length is %d", len(mf.Bytes())))
 

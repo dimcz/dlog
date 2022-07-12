@@ -58,7 +58,7 @@ func (d *Dlog) leftDirection() {
 }
 
 func (d *Dlog) reload() {
-	logging.LogOnErr(d.docker.out.Truncate(0))
+	logging.LogOnErr(d.docker.file.Truncate(0))
 
 	d.v.setTerminalName(d.docker.getName())
 	d.docker.logs()
@@ -90,12 +90,11 @@ func NewWithDocker() (*Dlog, error) {
 	_, initHeight := termbox.Size()
 	termbox.Close()
 
-	fWR := memfile.New([]byte{})
+	file := memfile.New([]byte{})
 
-	fRO := memfile.NewWithBuffer(fWR.Buffer())
-	d := New(fRO)
+	d := New(file)
 
-	docker, err := DockerClient(d.ctx, initHeight, fWR, fRO)
+	docker, err := DockerClient(d.ctx, initHeight, file)
 	if err != nil {
 		return nil, err
 	}
