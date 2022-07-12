@@ -9,7 +9,7 @@ import (
 	"github.com/dimcz/dlog/utils"
 )
 
-const VERSION = "1.1.2"
+const VERSION = "1.0.1"
 
 func main() {
 	showVersion := flag.Bool("version", false, "Print version information")
