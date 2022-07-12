@@ -17,7 +17,7 @@ import (
 	"github.com/docker/docker/client"
 )
 
-const TimeShift = -24 * 7
+const TimeShift = -24
 
 type Container struct {
 	ID   string
