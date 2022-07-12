@@ -72,6 +72,7 @@ func (fb *File) Insert(b []byte) (int, error) {
 	fb.m.Lock()
 	defer fb.m.Unlock()
 
+	copy(b, fb.b)
 	fb.b = append(b, fb.b...)
 	fb.i = len(fb.b)
 
