@@ -1,12 +1,12 @@
 package main
 
 import (
-	"dlog"
 	"flag"
 	"fmt"
 	"os"
 
-	"dlog/utils"
+	"github.com/dimcz/dlog"
+	"github.com/dimcz/dlog/utils"
 )
 
 const VERSION = "1.1.2"

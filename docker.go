@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"dlog/logging"
-	"dlog/memfile"
+	"github.com/dimcz/dlog/logging"
+	"github.com/dimcz/dlog/memfile"
 
 	"github.com/docker/docker/pkg/stdcopy"
 

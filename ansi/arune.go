@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"dlog/runes"
+	"github.com/dimcz/dlog/runes"
 )
 
 type RuneAttr struct {
