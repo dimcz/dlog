@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -18,7 +19,6 @@ import (
 	"github.com/docker/docker/client"
 )
 
-const MinimalRecordsChunk = "100"
 const TimeShift = -24
 
 type Container struct {
@@ -27,11 +27,11 @@ type Container struct {
 }
 
 type Docker struct {
+	height     int
 	out        *memfile.File
 	in         *memfile.File
 	containers []Container
 	current    int
-	reader     io.ReadCloser
 	cli        *client.Client
 
 	wg            *sync.WaitGroup
@@ -43,15 +43,9 @@ type Docker struct {
 func (d *Docker) followFrom(t time.Time) {
 	defer d.wg.Done()
 
-	if d.reader != nil {
-		_ = d.reader.Close()
-	}
-
-	var err error
-
 	logging.Debug(fmt.Sprintf("request block from %s", t.Add(1).Format(time.RFC3339)))
 
-	d.reader, err = d.cli.ContainerLogs(d.ctx, d.containers[d.current].ID, types.ContainerLogsOptions{
+	fd, err := d.cli.ContainerLogs(d.ctx, d.containers[d.current].ID, types.ContainerLogsOptions{
 		ShowStderr: true,
 		ShowStdout: true,
 		Follow:     true,
@@ -62,28 +56,25 @@ func (d *Docker) followFrom(t time.Time) {
 		return
 	}
 
-	if _, err := stdcopy.StdCopy(d.out, d.out, d.reader); err != nil {
+	defer func(fd io.ReadCloser) {
+		logging.LogOnErr(fd.Close())
+	}(fd)
+
+	if _, err := stdcopy.StdCopy(d.out, d.out, fd); err != nil {
 		return
 	}
-}
-
-func (d *Docker) Close() error {
-	if d.reader != nil {
-		return d.reader.Close()
-	}
-
-	return nil
 }
 
 func (d *Docker) logs() {
 	d.ctx, d.cancel = context.WithCancel(d.parentContext)
 
-	logging.Debug(fmt.Sprintf("request %s first records", MinimalRecordsChunk))
+	initHeight := strconv.Itoa(d.height)
+	logging.Debug(fmt.Sprintf("request %d first records", d.height))
 	start, end, err := d.retrieveAndParseLogs(types.ContainerLogsOptions{
 		ShowStderr: true,
 		ShowStdout: true,
 		Timestamps: true,
-		Tail:       MinimalRecordsChunk,
+		Tail:       initHeight,
 	})
 	if err != nil {
 		logging.Debug("failed to execute retrieveLogs:", err)
@@ -129,7 +120,7 @@ func (d *Docker) appendSince(t time.Time) {
 	}
 }
 
-func DockerClient(ctx context.Context, out, in *memfile.File) (*Docker, error) {
+func DockerClient(ctx context.Context, height int, out, in *memfile.File) (*Docker, error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		return nil, err
@@ -145,6 +136,7 @@ func DockerClient(ctx context.Context, out, in *memfile.File) (*Docker, error) {
 	}
 
 	return &Docker{
+		height:        height,
 		parentContext: ctx,
 		out:           out,
 		in:            in,
@@ -206,7 +198,7 @@ func (d *Docker) retrieveLogs(options types.ContainerLogsOptions) (*memfile.File
 	}
 
 	defer func(fd io.ReadCloser) {
-		_ = fd.Close()
+		logging.LogOnErr(fd.Close())
 	}(fd)
 
 	mf := memfile.New([]byte{})

@@ -7,6 +7,7 @@ import (
 
 	"github.com/dimcz/dlog/logging"
 	"github.com/dimcz/dlog/memfile"
+	"github.com/nsf/termbox-go"
 )
 
 type Dlog struct {
@@ -57,10 +58,6 @@ func (d *Dlog) leftDirection() {
 }
 
 func (d *Dlog) reload() {
-	if d.docker.reader != nil {
-		logging.LogOnErr(d.docker.reader.Close())
-	}
-
 	logging.LogOnErr(d.docker.out.Truncate(0))
 
 	d.v.setTerminalName(d.docker.getName())
@@ -70,8 +67,6 @@ func (d *Dlog) reload() {
 }
 
 func (d *Dlog) Shutdown() {
-	logging.LogOnErr(d.docker.Close())
-
 	d.cancel()
 	d.wg.Wait()
 }
@@ -88,12 +83,19 @@ func New(f *memfile.File) *Dlog {
 }
 
 func NewWithDocker() (*Dlog, error) {
+	if err := termbox.Init(); err != nil {
+		return nil, err
+	}
+
+	_, initHeight := termbox.Size()
+	termbox.Close()
+
 	fWR := memfile.New([]byte{})
 
 	fRO := memfile.NewWithBuffer(fWR.Buffer())
 	d := New(fRO)
 
-	docker, err := DockerClient(d.ctx, fWR, fRO)
+	docker, err := DockerClient(d.ctx, initHeight, fWR, fRO)
 	if err != nil {
 		return nil, err
 	}
