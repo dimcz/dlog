@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/client"
 )
 
+const MinimalRecordsChunk = "100"
 const TimeShift = -24
 
 type Container struct {
@@ -26,7 +27,6 @@ type Container struct {
 }
 
 type Docker struct {
-	ctx        context.Context
 	out        *memfile.File
 	in         *memfile.File
 	containers []Container
@@ -34,47 +34,15 @@ type Docker struct {
 	reader     io.ReadCloser
 	cli        *client.Client
 
-	done chan struct{}
-	wg   *sync.WaitGroup
-}
-
-func (d *Docker) retrieveLogs1(opts types.ContainerLogsOptions) error {
-	defer logging.Timeit("retrieveLogs")()
-
-	fd, err := d.cli.ContainerLogs(d.ctx, d.containers[d.current].ID, opts)
-	if err != nil {
-		return err
-	}
-
-	defer func(fd io.ReadCloser) {
-		_ = fd.Close()
-	}(fd)
-
-	mf := memfile.New([]byte{})
-
-	w, err := stdcopy.StdCopy(mf, mf, fd)
-	if err != nil {
-		return err
-	}
-
-	if len(mf.Bytes()) == 0 {
-		return fmt.Errorf("retrieve empty logs")
-	}
-
-	logging.Debug(fmt.Sprintf("retrieveLogs: got buffer array with length %d, write %d", len(mf.Bytes()), w))
-
-	if _, err := d.out.Insert(mf.Bytes()); err != nil {
-		return err
-	}
-
-	d.in.SetLen(d.out.GetLen())
-
-	logging.Debug(fmt.Sprintf("retrieveLogs: after insert, array length is %d", len(mf.Bytes())))
-
-	return nil
+	wg            *sync.WaitGroup
+	parentContext context.Context
+	ctx           context.Context
+	cancel        func()
 }
 
 func (d *Docker) followFrom(t time.Time) {
+	defer d.wg.Done()
+
 	if d.reader != nil {
 		_ = d.reader.Close()
 	}
@@ -108,12 +76,14 @@ func (d *Docker) Close() error {
 }
 
 func (d *Docker) logs() {
-	logging.Debug("request 500 records")
+	d.ctx, d.cancel = context.WithCancel(d.parentContext)
+
+	logging.Debug(fmt.Sprintf("request %s first records", MinimalRecordsChunk))
 	start, end, err := d.retrieveAndParseLogs(types.ContainerLogsOptions{
 		ShowStderr: true,
 		ShowStdout: true,
 		Timestamps: true,
-		Tail:       "500",
+		Tail:       MinimalRecordsChunk,
 	})
 	if err != nil {
 		logging.Debug("failed to execute retrieveLogs:", err)
@@ -121,6 +91,7 @@ func (d *Docker) logs() {
 	}
 
 	logging.Debug("execute following process")
+	d.wg.Add(1)
 	go d.followFrom(end.Add(1))
 
 	logging.Debug("execute append process")
@@ -137,7 +108,7 @@ func (d *Docker) appendSince(t time.Time) {
 
 	for {
 		select {
-		case <-d.done:
+		case <-d.ctx.Done():
 			return
 		default:
 			start = end.Add(time.Duration(TimeShift) * time.Hour)
@@ -174,13 +145,12 @@ func DockerClient(ctx context.Context, out, in *memfile.File) (*Docker, error) {
 	}
 
 	return &Docker{
-		ctx:        ctx,
-		out:        out,
-		in:         in,
-		cli:        cli,
-		containers: containers,
-		done:       make(chan struct{}, 1),
-		wg:         new(sync.WaitGroup),
+		parentContext: ctx,
+		out:           out,
+		in:            in,
+		cli:           cli,
+		containers:    containers,
+		wg:            new(sync.WaitGroup),
 	}, nil
 }
 
@@ -207,14 +177,8 @@ func (d *Docker) getName() string {
 		d.containers[d.current].ID[:12])
 }
 
-func (d *Docker) finish() {
-	select {
-	case d.done <- struct{}{}:
-	}
-}
-
 func (d *Docker) getNextContainer() {
-	d.finish()
+	d.cancel()
 	d.wg.Wait()
 
 	c := d.current + 1
@@ -225,7 +189,7 @@ func (d *Docker) getNextContainer() {
 }
 
 func (d *Docker) getPrevContainer() {
-	d.finish()
+	d.cancel()
 	d.wg.Wait()
 
 	c := d.current - 1
