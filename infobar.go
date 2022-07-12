@@ -348,7 +348,10 @@ func (history *ibHistory) load() {
 	if os.IsNotExist(err) {
 		return
 	}
-	defer logging.LogOnErr(f.Close())
+
+	defer func(f *os.File) {
+		logging.LogOnErr(f.Close())
+	}(f)
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
@@ -390,7 +393,10 @@ func (history *ibHistory) save(str []rune) {
 		logging.Debug(fmt.Sprintf("Could not open history file: %s", err))
 		return
 	}
-	defer logging.LogOnErr(f.Close())
+
+	defer func(f *os.File) {
+		logging.LogOnErr(f.Close())
+	}(f)
 
 	_, err = f.Write([]byte(string(str) + "\n"))
 	logging.LogOnErr(err)

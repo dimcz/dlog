@@ -284,7 +284,11 @@ func ParseFiltersFile(filename string) ([]*Filter, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer logging.LogOnErr(f.Close())
+
+	defer func(f *os.File) {
+		logging.LogOnErr(f.Close())
+	}(f)
+
 	scanner := bufio.NewScanner(f)
 
 	var filters []*Filter
