@@ -2,7 +2,6 @@ package dlog
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -152,15 +151,9 @@ func (f *Fetcher) seek(offset Offset) {
 	f.lineReaderOffset = offset
 }
 
-// stripTimeFromLine remove time stamp from beginning of line
-func (f *Fetcher) stripTimeFromLine(b []byte) []byte {
-	return b[bytes.IndexByte(b, ' ')+1:]
-}
-
 // reads and returns one Line, position and error, which can only be io.EOF, otherwise panics
 func (f *Fetcher) readline() ([]byte, Offset, error) {
 	str, err := f.lineReader.ReadBytes('\n')
-	str = f.stripTimeFromLine(str)
 	startingOffset := f.lineReaderOffset
 	if len(str) > 0 {
 		if err == nil {
