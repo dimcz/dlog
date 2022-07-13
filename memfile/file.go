@@ -23,9 +23,10 @@ type Buffer struct {
 // File is an in-memory emulation of the I/O operations of os.File.
 // The zero value for File is an empty file ready to use.
 type File struct {
-	m   sync.Mutex
-	b   []byte
-	pos int
+	m        sync.Mutex
+	b        []byte
+	pos      int
+	writePos int
 }
 
 // New creates and initializes a new File using b as its initial contents.
@@ -74,6 +75,11 @@ func (fb *File) Insert(b []byte) (int, error) {
 
 	fb.b = append(b, fb.b...)
 	fb.pos += len(b)
+
+	if fb.writePos == 0 {
+		fb.writePos = fb.pos
+	}
+
 	return len(fb.b), nil
 }
 
@@ -86,6 +92,8 @@ func (fb *File) Write(b []byte) (int, error) {
 	defer fb.m.Unlock()
 
 	n, err := fb.writeAt(b, int64(len(fb.b)))
+	fb.writePos += n
+
 	return n, err
 }
 
@@ -162,6 +170,10 @@ func (fb *File) Bytes() []byte {
 	fb.m.Lock()
 	defer fb.m.Unlock()
 	return fb.b
+}
+
+func (fb *File) WriteOffset() int {
+	return fb.writePos
 }
 
 // A fileStat is the implementation of FileInfo returned by Stat.
