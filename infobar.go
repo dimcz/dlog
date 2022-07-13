@@ -108,9 +108,9 @@ func (v *infoBar) statusBar(follow bool) {
 	v.flock.Lock()
 	defer v.flock.Unlock()
 
-	str := []rune(fmt.Sprintf("%d", v.totalLines))
+	str := []rune(fmt.Sprintf("%s/%d", *v.currentLine, v.totalLines))
 	if follow {
-		str = []rune(fmt.Sprintf("%d...", v.totalLines))
+		str = []rune(fmt.Sprintf("...%d", v.totalLines))
 	}
 	for i := 0; i < len(str); i++ {
 		termbox.SetCell(v.width-len(str)+i, v.y, str[i], termbox.ColorYellow, termbox.ColorDefault)
