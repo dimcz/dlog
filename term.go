@@ -405,14 +405,17 @@ func (v *viewer) draw() {
 func (v *viewer) navigate(direction int) {
 	v.buffer.shift(direction)
 	v.following = false
+	if !v.buffer.isFull() {
+		v.following = true
+	}
 	v.draw()
 }
 
 func (v *viewer) navigateEnd() {
 	v.buffer.reset(Pos{POS_UNKNOWN, v.fetcher.lastOffset()})
-	v.buffer.shift(-v.height / 4)
+	v.navigate(-v.height)
+
 	v.following = true
-	v.draw()
 }
 
 func (v *viewer) navigateStart() {
