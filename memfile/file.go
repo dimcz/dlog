@@ -23,10 +23,10 @@ type Buffer struct {
 // File is an in-memory emulation of the I/O operations of os.File.
 // The zero value for File is an empty file ready to use.
 type File struct {
-	m sync.Mutex
-	b []byte
-	i int
-	w int
+	m        sync.Mutex
+	b        []byte
+	pos      int
+	writePos int
 }
 
 // New creates and initializes a new File using b as its initial contents.
@@ -42,8 +42,8 @@ func (fb *File) Read(b []byte) (int, error) {
 	fb.m.Lock()
 	defer fb.m.Unlock()
 
-	n, err := fb.readAt(b, int64(fb.i))
-	fb.i += n
+	n, err := fb.readAt(b, int64(fb.pos))
+	fb.pos += n
 	return n, err
 }
 
@@ -74,17 +74,13 @@ func (fb *File) Insert(b []byte) (int, error) {
 	defer fb.m.Unlock()
 
 	fb.b = append(b, fb.b...)
-	fb.i = len(fb.b)
+	fb.pos += len(b)
 
-	if fb.w == 0 {
-		fb.w = fb.i
+	if fb.writePos == 0 {
+		fb.writePos = fb.pos
 	}
 
 	return len(fb.b), nil
-}
-
-func (fb *File) GetLen() int {
-	return len(fb.b)
 }
 
 // Write writes len(b) bytes to the File.
@@ -95,9 +91,9 @@ func (fb *File) Write(b []byte) (int, error) {
 	fb.m.Lock()
 	defer fb.m.Unlock()
 
-	n, err := fb.writeAt(b, int64(fb.i))
-	fb.i += n
-	fb.w += n
+	n, err := fb.writeAt(b, int64(len(fb.b)))
+	fb.writePos += n
+
 	return n, err
 }
 
@@ -136,7 +132,7 @@ func (fb *File) Seek(offset int64, whence int) (int64, error) {
 	case io.SeekStart:
 		abs = offset
 	case io.SeekCurrent:
-		abs = int64(fb.i) + offset
+		abs = int64(fb.pos) + offset
 	case io.SeekEnd:
 		abs = int64(len(fb.b)) + offset
 	default:
@@ -145,7 +141,7 @@ func (fb *File) Seek(offset int64, whence int) (int64, error) {
 	if abs < 0 {
 		return 0, errInvalid
 	}
-	fb.i = int(abs)
+	fb.pos = int(abs)
 	return abs, nil
 }
 
@@ -176,8 +172,8 @@ func (fb *File) Bytes() []byte {
 	return fb.b
 }
 
-func (fb *File) WriteLen() int {
-	return fb.w
+func (fb *File) WriteOffset() int {
+	return fb.writePos
 }
 
 // A fileStat is the implementation of FileInfo returned by Stat.

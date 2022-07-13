@@ -294,37 +294,6 @@ func ToTermboxAttr(attr ansi.RuneAttr) (fg, bg termbox.Attribute) {
 	return fg, bg
 }
 
-func (v *viewer) getWrapCount() int {
-	var tx int
-	var wl int
-	for ty, dataLine := 0, 0; ty < v.height; ty++ {
-		tx = 0
-		line, err := v.buffer.getLine(dataLine)
-		if err == io.EOF {
-			break
-		}
-		chars, _ := v.replaceWithKeptChars(line.Str)
-		for _, char := range chars {
-			tx += runewidth.RuneWidth(char)
-			if tx >= v.width {
-				if v.wrap {
-					tx = 0
-					ty++
-					wl++
-				} else {
-					break
-				}
-			}
-		}
-		if ty >= v.height {
-			break
-		}
-		dataLine++
-	}
-
-	return wl
-}
-
 func (v *viewer) draw() {
 	logging.LogOnErr(termbox.Clear(termbox.ColorDefault, termbox.ColorDefault))
 
@@ -397,7 +366,7 @@ func (v *viewer) draw() {
 		dataLine++
 	}
 
-	v.info.draw(v.following)
+	v.info.draw()
 
 	logging.LogOnErr(termbox.Flush())
 }
@@ -653,7 +622,7 @@ loop:
 			case line := <-requestStatusUpdate:
 				v.info.totalLines = line + 1
 				if v.focus == v {
-					v.info.draw(v.following)
+					v.info.draw()
 				}
 			case charChange := <-requestKeepCharsChange:
 				if v.keepChars+charChange >= 0 {
@@ -693,13 +662,15 @@ func (v *viewer) refill() {
 			if v.buffer.isFull() {
 				v.buffer.shiftToEnd()
 			}
-			v.draw()
+			// v.draw()
 			continue
 		}
 		if result.lastLineChanged {
-			v.draw()
+			// v.draw()
 			continue
 		}
+
+		v.draw()
 		return
 	}
 }
@@ -792,7 +763,7 @@ loop:
 
 func (v *viewer) follow(ctx context.Context) {
 	delay := 100 * time.Millisecond
-	lastOffset := v.fetcher.lastOffset()
+	lastOffset := v.fetcher.lastWROffset()
 	for {
 		select {
 		case <-ctx.Done():
@@ -800,7 +771,7 @@ func (v *viewer) follow(ctx context.Context) {
 		case <-time.After(delay):
 			if v.following {
 				prevOffset := lastOffset
-				lastOffset = v.fetcher.lastWriteOffset()
+				lastOffset = v.fetcher.lastWROffset()
 				if lastOffset != prevOffset {
 					logging.Debug("follow-->", lastOffset)
 					go func() {
