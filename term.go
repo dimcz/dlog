@@ -662,13 +662,15 @@ func (v *viewer) refill() {
 			if v.buffer.isFull() {
 				v.buffer.shiftToEnd()
 			}
-			v.draw()
+			// v.draw()
 			continue
 		}
 		if result.lastLineChanged {
-			v.draw()
+			// v.draw()
 			continue
 		}
+
+		v.draw()
 		return
 	}
 }
@@ -761,7 +763,7 @@ loop:
 
 func (v *viewer) follow(ctx context.Context) {
 	delay := 100 * time.Millisecond
-	lastOffset := v.fetcher.lastOffset()
+	lastOffset := v.fetcher.lastWROffset()
 	for {
 		select {
 		case <-ctx.Done():
@@ -769,7 +771,7 @@ func (v *viewer) follow(ctx context.Context) {
 		case <-time.After(delay):
 			if v.following {
 				prevOffset := lastOffset
-				lastOffset = v.fetcher.lastOffset()
+				lastOffset = v.fetcher.lastWROffset()
 				if lastOffset != prevOffset {
 					logging.Debug("follow-->", lastOffset)
 					go func() {
