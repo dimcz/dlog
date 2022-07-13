@@ -397,7 +397,7 @@ func (v *viewer) draw() {
 		dataLine++
 	}
 
-	v.info.draw(v.following)
+	v.info.draw()
 
 	logging.LogOnErr(termbox.Flush())
 }
@@ -405,14 +405,17 @@ func (v *viewer) draw() {
 func (v *viewer) navigate(direction int) {
 	v.buffer.shift(direction)
 	v.following = false
+	if !v.buffer.isFull() {
+		v.following = true
+	}
 	v.draw()
 }
 
 func (v *viewer) navigateEnd() {
 	v.buffer.reset(Pos{POS_UNKNOWN, v.fetcher.lastOffset()})
-	v.buffer.shift(-v.height / 4)
+	v.navigate(-v.height)
+
 	v.following = true
-	v.draw()
 }
 
 func (v *viewer) navigateStart() {
@@ -650,7 +653,7 @@ loop:
 			case line := <-requestStatusUpdate:
 				v.info.totalLines = line + 1
 				if v.focus == v {
-					v.info.draw(v.following)
+					v.info.draw()
 				}
 			case charChange := <-requestKeepCharsChange:
 				if v.keepChars+charChange >= 0 {
@@ -797,7 +800,7 @@ func (v *viewer) follow(ctx context.Context) {
 		case <-time.After(delay):
 			if v.following {
 				prevOffset := lastOffset
-				lastOffset = v.fetcher.lastWriteOffset()
+				lastOffset = v.fetcher.lastOffset()
 				if lastOffset != prevOffset {
 					logging.Debug("follow-->", lastOffset)
 					go func() {

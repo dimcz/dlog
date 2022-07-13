@@ -93,7 +93,7 @@ func (v *infoBar) reset(mode infoBarMode) {
 	v.cx = 0
 	v.editBuffer = v.editBuffer[:0]
 	v.mode = mode
-	v.draw(false)
+	v.draw()
 }
 
 func (v *infoBar) clear() {
@@ -102,16 +102,13 @@ func (v *infoBar) clear() {
 	}
 }
 
-func (v *infoBar) statusBar(follow bool) {
+func (v *infoBar) statusBar() {
 	v.clear()
 	v.message = ibMessage{}
 	v.flock.Lock()
 	defer v.flock.Unlock()
 
 	str := []rune(fmt.Sprintf("%s/%d", *v.currentLine, v.totalLines))
-	if follow {
-		str = []rune(fmt.Sprintf("...%d", v.totalLines))
-	}
 	for i := 0; i < len(str); i++ {
 		termbox.SetCell(v.width-len(str)+i, v.y, str[i], termbox.ColorYellow, termbox.ColorDefault)
 	}
@@ -136,7 +133,7 @@ func (v *infoBar) showSearch() {
 	v.syncSearchString()
 }
 
-func (v *infoBar) draw(follow bool) {
+func (v *infoBar) draw() {
 	switch v.mode {
 	case ibModeBackSearch:
 		termbox.SetCell(0, v.y, '?', termbox.ColorGreen, termbox.ColorDefault)
@@ -165,7 +162,7 @@ func (v *infoBar) draw(follow bool) {
 		v.showSearch()
 		v.moveCursorToPosition(len(v.editBuffer))
 	case ibModeStatus:
-		v.statusBar(follow)
+		v.statusBar()
 	case ibModeMessage:
 		v.showMessage()
 	default:
@@ -338,7 +335,7 @@ func (v *infoBar) switchSearchType() {
 		}
 		nextSt := filters.SearchTypeMap[nextID]
 		v.searchType = nextSt
-		v.draw(false)
+		v.draw()
 	}
 }
 
