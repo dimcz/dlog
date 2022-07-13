@@ -25,6 +25,8 @@ func (d *Dlog) GetFile() *memfile.File {
 }
 
 func (d *Dlog) Display() {
+	start := d.docker.preload()
+
 	d.fetcher = NewFetcher(d.ctx, d.file)
 	d.resetFetcher()
 
@@ -35,7 +37,9 @@ func (d *Dlog) Display() {
 		WithKeyArrowRight(d.rightDirection),
 		WithKeyArrowLeft(d.leftDirection))
 
-	d.v.termGui(d.docker.getName())
+	d.v.termGui(d.docker.getName(), func() {
+		d.docker.appendLogs(start)
+	})
 }
 
 func (d *Dlog) resetFetcher() {
@@ -60,10 +64,13 @@ func (d *Dlog) leftDirection() {
 func (d *Dlog) reload() {
 	logging.LogOnErr(d.docker.file.Truncate(0))
 
+	start := d.docker.preload()
+
 	d.v.setTerminalName(d.docker.getName())
-	d.docker.logs()
 	d.resetFetcher()
 	d.v.navigateEnd()
+
+	d.docker.appendLogs(start)
 }
 
 func (d *Dlog) Shutdown() {
@@ -100,8 +107,6 @@ func NewWithDocker() (*Dlog, error) {
 	}
 
 	d.docker = docker
-
-	docker.logs()
 
 	return d, nil
 }

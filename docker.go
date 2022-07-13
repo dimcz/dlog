@@ -64,7 +64,7 @@ func (d *Docker) followFrom(t int64) {
 	}
 }
 
-func (d *Docker) logs() {
+func (d *Docker) preload() int64 {
 	d.ctx, d.cancel = context.WithCancel(d.parentContext)
 
 	initHeight := strconv.Itoa(d.height)
@@ -77,13 +77,17 @@ func (d *Docker) logs() {
 	})
 	if err != nil {
 		logging.Debug("failed to execute retrieveLogs:", err)
-		return
+		return -1
 	}
 
 	logging.Debug("execute following process")
 	d.wg.Add(1)
 	go d.followFrom(end)
 
+	return start
+}
+
+func (d *Docker) appendLogs(start int64) {
 	logging.Debug("execute append process")
 	d.wg.Add(1)
 	go d.appendSince(start)
