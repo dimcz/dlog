@@ -24,11 +24,13 @@ func (b *viewBuffer) getLine(offset int) (Line, error) {
 	if b.pos+offset >= len(b.buffer) && !b.eofReached {
 		b.fill()
 	}
+
 	if b.pos+offset >= len(b.buffer) || len(b.buffer) == 0 {
 		b.eofReached = true
 
 		return Line{}, io.EOF
 	}
+
 	return b.buffer[b.pos+offset], nil // TODO: What happens if we reached the end? panic!
 }
 

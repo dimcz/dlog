@@ -14,6 +14,7 @@ import (
 	"github.com/dimcz/dlog/ansi"
 	"github.com/dimcz/dlog/filters"
 	"github.com/dimcz/dlog/logging"
+	"github.com/dimcz/dlog/runes"
 	"github.com/dimcz/dlog/utils"
 
 	"code.cloudfoundry.org/bytefmt"
@@ -335,13 +336,7 @@ func (v *viewer) draw() {
 	var hlChars int
 	var tx int
 
-	dataLine := 0
-	if v.wrap {
-		dataLine = v.getWrapCount()
-		logging.Debug("draw dataline:", dataLine)
-	}
-
-	for ty := 0; ty < v.height; ty++ {
+	for dataLine, ty := 0, 0; ty < v.height; ty++ {
 		tx = 0
 		hlChars = 0
 		line, err := v.buffer.getLine(dataLine)
@@ -349,6 +344,12 @@ func (v *viewer) draw() {
 			break
 		}
 		chars, attrs = v.replaceWithKeptChars(line.Str)
+
+		// remove time stamp in beginning of line
+		if i := runes.IndexRune(chars, ' '); i > 0 {
+			chars = chars[i+1:]
+		}
+
 		hlIndices = [][]int{}
 		if len(v.search) != 0 {
 			searchFunc, err := filters.GetSearchFunc(v.info.searchType, v.search)
@@ -580,7 +581,7 @@ var requestRefill = make(chan struct{})
 var requestStatusUpdate = make(chan LineNo)
 var requestKeepCharsChange = make(chan int)
 
-func (v *viewer) termGui(terminalName string) {
+func (v *viewer) termGui(terminalName string, callback func()) {
 	if err := termbox.Init(); err != nil {
 		panic(err)
 	}
@@ -616,6 +617,8 @@ func (v *viewer) termGui(terminalName string) {
 
 	v.resize(termbox.Size())
 	v.navigateEnd()
+
+	callback()
 
 	wg.Add(3)
 	go func() { v.refreshIfEmpty(ctx); wg.Done() }()

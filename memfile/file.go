@@ -23,22 +23,15 @@ type Buffer struct {
 // File is an in-memory emulation of the I/O operations of os.File.
 // The zero value for File is an empty file ready to use.
 type File struct {
-	m      sync.Mutex
-	buffer *Buffer
-	i      int
+	m sync.Mutex
+	b []byte
+	i int
 }
 
 // New creates and initializes a new File using b as its initial contents.
 // The new File takes ownership of b.
 func New(b []byte) *File {
-	return &File{buffer: &Buffer{b}}
-}
-
-// NewWithBuffer creates and initializes a new File using b as references.
-// The new File takes ownership of b.
-//goland:noinspection GoUnusedExportedFunction
-func NewWithBuffer(b *Buffer) *File {
-	return &File{buffer: b}
+	return &File{b: b}
 }
 
 // Read reads up to len(b) bytes from the File.
@@ -65,10 +58,10 @@ func (fb *File) readAt(b []byte, off int64) (int, error) {
 	if off < 0 || int64(int(off)) < off {
 		return 0, errInvalid
 	}
-	if off > int64(len(fb.buffer.bytes)) {
+	if off > int64(len(fb.b)) {
 		return 0, io.EOF
 	}
-	n := copy(b, fb.buffer.bytes[off:])
+	n := copy(b, fb.b[off:])
 	if n < len(b) {
 		return n, io.EOF
 	}
@@ -79,18 +72,14 @@ func (fb *File) Insert(b []byte) (int, error) {
 	fb.m.Lock()
 	defer fb.m.Unlock()
 
-	fb.buffer.bytes = append(b, fb.buffer.bytes...)
-	fb.i = len(fb.buffer.bytes)
+	fb.b = append(b, fb.b...)
+	fb.i = len(fb.b)
 
-	return len(fb.buffer.bytes), nil
+	return len(fb.b), nil
 }
 
 func (fb *File) GetLen() int {
-	return len(fb.buffer.bytes)
-}
-
-func (fb *File) SetLen(n int) {
-	fb.i = n
+	return len(fb.b)
 }
 
 // Write writes len(b) bytes to the File.
@@ -119,13 +108,13 @@ func (fb *File) writeAt(b []byte, off int64) (int, error) {
 	if off < 0 || int64(int(off)) < off {
 		return 0, errInvalid
 	}
-	if off > int64(len(fb.buffer.bytes)) {
+	if off > int64(len(fb.b)) {
 		if err := fb.truncate(off); err != nil {
 			return 0, nil
 		}
 	}
-	n := copy(fb.buffer.bytes[off:], b)
-	fb.buffer.bytes = append(fb.buffer.bytes, b[n:]...)
+	n := copy(fb.b[off:], b)
+	fb.b = append(fb.b, b[n:]...)
 	return len(b), nil
 }
 
@@ -143,7 +132,7 @@ func (fb *File) Seek(offset int64, whence int) (int64, error) {
 	case io.SeekCurrent:
 		abs = int64(fb.i) + offset
 	case io.SeekEnd:
-		abs = int64(len(fb.buffer.bytes)) + offset
+		abs = int64(len(fb.b)) + offset
 	default:
 		return 0, errInvalid
 	}
@@ -164,11 +153,11 @@ func (fb *File) truncate(n int64) error {
 	switch {
 	case n < 0 || int64(int(n)) < n:
 		return errInvalid
-	case n <= int64(len(fb.buffer.bytes)):
-		fb.buffer.bytes = append([]byte{}, fb.buffer.bytes[:n]...)
+	case n <= int64(len(fb.b)):
+		fb.b = append([]byte{}, fb.b[:n]...)
 		return nil
 	default:
-		fb.buffer.bytes = append(fb.buffer.bytes, make([]byte, int(n)-len(fb.buffer.bytes))...)
+		fb.b = append(fb.b, make([]byte, int(n)-len(fb.b))...)
 		return nil
 	}
 }
@@ -178,7 +167,7 @@ func (fb *File) truncate(n int64) error {
 func (fb *File) Bytes() []byte {
 	fb.m.Lock()
 	defer fb.m.Unlock()
-	return fb.buffer.bytes
+	return fb.b
 }
 
 // A fileStat is the implementation of FileInfo returned by Stat.
@@ -200,11 +189,6 @@ func (fs *fileStat) Sys() any           { panic("Not Implemented") }
 // Stat returns the FileInfo structure describing file.
 func (fb *File) Stat() (os.FileInfo, error) {
 	return &fileStat{
-		size: int64(len(fb.buffer.bytes)),
+		size: int64(len(fb.b)),
 	}, nil
-}
-
-// Buffer return reference to byte array
-func (fb *File) Buffer() *Buffer {
-	return fb.buffer
 }

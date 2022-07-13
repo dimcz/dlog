@@ -19,7 +19,7 @@ import (
 	"github.com/docker/docker/client"
 )
 
-const TimeShift = -24
+const TimeShift = 24 * 60 * 60
 
 type Container struct {
 	ID   string
@@ -28,8 +28,7 @@ type Container struct {
 
 type Docker struct {
 	height     int
-	out        *memfile.File
-	in         *memfile.File
+	file       *memfile.File
 	containers []Container
 	current    int
 	cli        *client.Client
@@ -40,17 +39,17 @@ type Docker struct {
 	cancel        func()
 }
 
-func (d *Docker) followFrom(t time.Time) {
+func (d *Docker) followFrom(t int64) {
 	defer d.wg.Done()
 
-	logging.Debug(fmt.Sprintf("request block from %s", t.Add(1).Format(time.RFC3339)))
+	logging.Debug("request block from", t)
 
 	fd, err := d.cli.ContainerLogs(d.ctx, d.containers[d.current].ID, types.ContainerLogsOptions{
 		ShowStderr: true,
 		ShowStdout: true,
 		Follow:     true,
 		Timestamps: true,
-		Since:      t.Add(1).Format(time.RFC3339),
+		Since:      strconv.FormatInt(t+1, 10),
 	})
 	if err != nil {
 		return
@@ -60,12 +59,12 @@ func (d *Docker) followFrom(t time.Time) {
 		logging.LogOnErr(fd.Close())
 	}(fd)
 
-	if _, err := stdcopy.StdCopy(d.out, d.out, fd); err != nil {
+	if _, err := stdcopy.StdCopy(d.file, d.file, fd); err != nil {
 		return
 	}
 }
 
-func (d *Docker) logs() {
+func (d *Docker) preload() int64 {
 	d.ctx, d.cancel = context.WithCancel(d.parentContext)
 
 	initHeight := strconv.Itoa(d.height)
@@ -78,49 +77,53 @@ func (d *Docker) logs() {
 	})
 	if err != nil {
 		logging.Debug("failed to execute retrieveLogs:", err)
-		return
+		return -1
 	}
 
 	logging.Debug("execute following process")
 	d.wg.Add(1)
-	go d.followFrom(end.Add(1))
+	go d.followFrom(end)
 
-	logging.Debug("execute append process")
-	d.wg.Add(1)
-	go d.appendSince(start.Add(-1))
+	return start
 }
 
-func (d *Docker) appendSince(t time.Time) {
+func (d *Docker) appendLogs(start int64) {
+	logging.Debug("execute append process")
+	d.wg.Add(1)
+	go d.appendSince(start)
+}
+
+func (d *Docker) appendSince(t int64) {
 	defer d.wg.Done()
 	defer logging.Timeit("append logs")()
 
-	end := t.Add(-1)
-	var start time.Time
+	end := t - 1
+	var start int64
 
 	for {
 		select {
 		case <-d.ctx.Done():
 			return
 		default:
-			start = end.Add(time.Duration(TimeShift) * time.Hour)
-			logging.Debug(fmt.Sprintf("request block between %s and %s", start, end))
+			start = end - TimeShift
+			logging.Debug(fmt.Sprintf("request block between %d and %d", start, end))
 			_, err := d.retrieveLogs(types.ContainerLogsOptions{
 				ShowStderr: true,
 				ShowStdout: true,
 				Timestamps: true,
-				Until:      end.Format(time.RFC3339),
-				Since:      start.Format(time.RFC3339),
+				Until:      strconv.FormatInt(end, 10),
+				Since:      strconv.FormatInt(start, 10),
 			})
 			if err != nil {
 				logging.Debug("failed to execute retrieveLogs:", err)
 				return
 			}
-			end = start.Add(-1)
+			end = start - 1
 		}
 	}
 }
 
-func DockerClient(ctx context.Context, height int, out, in *memfile.File) (*Docker, error) {
+func DockerClient(ctx context.Context, height int, file *memfile.File) (*Docker, error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		return nil, err
@@ -138,8 +141,7 @@ func DockerClient(ctx context.Context, height int, out, in *memfile.File) (*Dock
 	return &Docker{
 		height:        height,
 		parentContext: ctx,
-		out:           out,
-		in:            in,
+		file:          file,
 		cli:           cli,
 		containers:    containers,
 		wg:            new(sync.WaitGroup),
@@ -214,28 +216,26 @@ func (d *Docker) retrieveLogs(options types.ContainerLogsOptions) (*memfile.File
 
 	logging.Debug(fmt.Sprintf("retrieveLogs: got buffer array with length %d, write %d", len(mf.Bytes()), w))
 
-	if _, err := d.out.Insert(mf.Bytes()); err != nil {
+	if _, err := d.file.Insert(mf.Bytes()); err != nil {
 		return nil, err
 	}
-
-	d.in.SetLen(d.out.GetLen())
 
 	logging.Debug(fmt.Sprintf("retrieveLogs: after insert, array length is %d", len(mf.Bytes())))
 
 	return mf, nil
 }
 
-func (d *Docker) retrieveAndParseLogs(opts types.ContainerLogsOptions) (time.Time, time.Time, error) {
+func (d *Docker) retrieveAndParseLogs(opts types.ContainerLogsOptions) (int64, int64, error) {
 	mf, err := d.retrieveLogs(opts)
 	if err != nil {
-		return time.Time{}, time.Time{}, err
+		return -1, -1, err
 	}
 
 	str := strings.Split(string(mf.Bytes()[0:bytes.IndexByte(mf.Bytes(), '\n')]), " ")[0]
 
 	start, err := time.Parse(time.RFC3339, str)
 	if err != nil {
-		return time.Time{}, time.Time{}, err
+		return -1, -1, err
 	}
 
 	index := bytes.LastIndex(mf.Bytes(), []byte{'\n'})
@@ -244,8 +244,8 @@ func (d *Docker) retrieveAndParseLogs(opts types.ContainerLogsOptions) (time.Tim
 	str = strings.Split(string(mf.Bytes()[index+1:]), " ")[0]
 	end, err := time.Parse(time.RFC3339, str)
 	if err != nil {
-		return time.Time{}, time.Time{}, err
+		return -1, -1, err
 	}
 
-	return start, end, nil
+	return start.Unix(), end.Unix(), nil
 }
