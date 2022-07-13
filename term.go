@@ -294,37 +294,6 @@ func ToTermboxAttr(attr ansi.RuneAttr) (fg, bg termbox.Attribute) {
 	return fg, bg
 }
 
-func (v *viewer) getWrapCount() int {
-	var tx int
-	var wl int
-	for ty, dataLine := 0, 0; ty < v.height; ty++ {
-		tx = 0
-		line, err := v.buffer.getLine(dataLine)
-		if err == io.EOF {
-			break
-		}
-		chars, _ := v.replaceWithKeptChars(line.Str)
-		for _, char := range chars {
-			tx += runewidth.RuneWidth(char)
-			if tx >= v.width {
-				if v.wrap {
-					tx = 0
-					ty++
-					wl++
-				} else {
-					break
-				}
-			}
-		}
-		if ty >= v.height {
-			break
-		}
-		dataLine++
-	}
-
-	return wl
-}
-
 func (v *viewer) draw() {
 	logging.LogOnErr(termbox.Clear(termbox.ColorDefault, termbox.ColorDefault))
 
