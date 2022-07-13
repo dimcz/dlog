@@ -5,6 +5,7 @@ import (
 	"io"
 	"sync"
 
+	"github.com/dimcz/dlog/docker"
 	"github.com/dimcz/dlog/logging"
 	"github.com/dimcz/dlog/memfile"
 	"github.com/nsf/termbox-go"
@@ -16,7 +17,7 @@ type Dlog struct {
 	cancel  context.CancelFunc
 	file    *memfile.File
 	fetcher *Fetcher
-	docker  *Docker
+	docker  *docker.Docker
 	v       *viewer
 }
 
@@ -25,7 +26,7 @@ func (d *Dlog) GetFile() *memfile.File {
 }
 
 func (d *Dlog) Display() {
-	start := d.docker.preload()
+	start := d.docker.Follow(height())
 
 	d.fetcher = NewFetcher(d.ctx, d.file)
 	d.resetFetcher()
@@ -37,8 +38,8 @@ func (d *Dlog) Display() {
 		WithKeyArrowRight(d.rightDirection),
 		WithKeyArrowLeft(d.leftDirection))
 
-	d.v.termGui(d.docker.getName(), func() {
-		d.docker.appendLogs(start)
+	d.v.termGui(d.docker.Name(), func() {
+		d.docker.Append(start)
 	})
 }
 
@@ -51,26 +52,24 @@ func (d *Dlog) resetFetcher() {
 
 func (d *Dlog) rightDirection() {
 	d.v.initScreen()
-	d.docker.getNextContainer()
+	d.docker.NextContainer()
 	d.reload()
 }
 
 func (d *Dlog) leftDirection() {
 	d.v.initScreen()
-	d.docker.getPrevContainer()
+	d.docker.PrevContainer()
 	d.reload()
 }
 
 func (d *Dlog) reload() {
-	logging.LogOnErr(d.docker.file.Truncate(0))
+	start := d.docker.Follow(d.v.height)
 
-	start := d.docker.preload()
-
-	d.v.setTerminalName(d.docker.getName())
+	d.v.setTerminalName(d.docker.Name())
 	d.resetFetcher()
 	d.v.navigateEnd()
 
-	d.docker.appendLogs(start)
+	d.docker.Append(start)
 }
 
 func (d *Dlog) Shutdown() {
@@ -90,23 +89,27 @@ func New(f *memfile.File) *Dlog {
 }
 
 func NewWithDocker() (*Dlog, error) {
-	if err := termbox.Init(); err != nil {
-		return nil, err
-	}
+	memFile := memfile.New([]byte{})
 
-	_, initHeight := termbox.Size()
-	termbox.Close()
+	d := New(memFile)
 
-	file := memfile.New([]byte{})
+	var err error
 
-	d := New(file)
-
-	docker, err := DockerClient(d.ctx, initHeight, file)
+	d.docker, err = docker.Client(d.ctx, memFile)
 	if err != nil {
 		return nil, err
 	}
 
-	d.docker = docker
-
 	return d, nil
+}
+
+func height() int {
+	defer termbox.Close()
+
+	if err := termbox.Init(); err != nil {
+		panic(err)
+	}
+
+	_, h := termbox.Size()
+	return h
 }
