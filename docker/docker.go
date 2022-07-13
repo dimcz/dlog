@@ -1,4 +1,4 @@
-package dlog
+package docker
 
 import (
 	"bytes"
@@ -27,7 +27,6 @@ type Container struct {
 }
 
 type Docker struct {
-	height     int
 	file       *memfile.File
 	containers []Container
 	current    int
@@ -64,16 +63,19 @@ func (d *Docker) followFrom(t int64) {
 	}
 }
 
-func (d *Docker) preload() int64 {
+func (d *Docker) Follow(initChunk int) int64 {
 	d.ctx, d.cancel = context.WithCancel(d.parentContext)
 
-	initHeight := strconv.Itoa(d.height)
-	logging.Debug(fmt.Sprintf("request %d first records", d.height))
+	h := strconv.Itoa(initChunk)
+
+	d.reset()
+
+	logging.Debug(fmt.Sprintf("request %d first records", initChunk))
 	start, end, err := d.retrieveAndParseLogs(types.ContainerLogsOptions{
 		ShowStderr: true,
 		ShowStdout: true,
 		Timestamps: true,
-		Tail:       initHeight,
+		Tail:       h,
 	})
 	if err != nil {
 		logging.Debug("failed to execute retrieveLogs:", err)
@@ -87,7 +89,7 @@ func (d *Docker) preload() int64 {
 	return start
 }
 
-func (d *Docker) appendLogs(start int64) {
+func (d *Docker) Append(start int64) {
 	logging.Debug("execute append process")
 	d.wg.Add(1)
 	go d.appendSince(start)
@@ -123,7 +125,7 @@ func (d *Docker) appendSince(t int64) {
 	}
 }
 
-func DockerClient(ctx context.Context, height int, file *memfile.File) (*Docker, error) {
+func Client(ctx context.Context, file *memfile.File) (*Docker, error) {
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
 		return nil, err
@@ -139,7 +141,6 @@ func DockerClient(ctx context.Context, height int, file *memfile.File) (*Docker,
 	}
 
 	return &Docker{
-		height:        height,
 		parentContext: ctx,
 		file:          file,
 		cli:           cli,
@@ -163,7 +164,7 @@ func retrieveContainers(cli *client.Client) (containers []Container, err error) 
 	return containers, nil
 }
 
-func (d *Docker) getName() string {
+func (d *Docker) Name() string {
 	return fmt.Sprintf("(%d/%d) %s (ID:%s)",
 		d.current+1,
 		len(d.containers),
@@ -171,7 +172,7 @@ func (d *Docker) getName() string {
 		d.containers[d.current].ID[:12])
 }
 
-func (d *Docker) getNextContainer() {
+func (d *Docker) NextContainer() {
 	d.cancel()
 	d.wg.Wait()
 
@@ -182,7 +183,7 @@ func (d *Docker) getNextContainer() {
 	d.current = c
 }
 
-func (d *Docker) getPrevContainer() {
+func (d *Docker) PrevContainer() {
 	d.cancel()
 	d.wg.Wait()
 
@@ -248,4 +249,10 @@ func (d *Docker) retrieveAndParseLogs(opts types.ContainerLogsOptions) (int64, i
 	}
 
 	return start.Unix(), end.Unix(), nil
+}
+
+func (d *Docker) reset() {
+	if err := d.file.Truncate(0); err != nil {
+		logging.Debug("failed to execute Truncate with error:", err)
+	}
 }
