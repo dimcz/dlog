@@ -662,11 +662,9 @@ func (v *viewer) refill() {
 			if v.buffer.isFull() {
 				v.buffer.shiftToEnd()
 			}
-			// v.draw()
 			continue
 		}
 		if result.lastLineChanged {
-			// v.draw()
 			continue
 		}
 
