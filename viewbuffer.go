@@ -125,7 +125,6 @@ func (b *viewBuffer) backFill() {
 }
 
 func (b *viewBuffer) shift(direction int) {
-	logging.Debug("direction", direction)
 	defer func() {
 		b.originalPos = b.currentLine().Pos
 	}()

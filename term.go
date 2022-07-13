@@ -797,8 +797,9 @@ func (v *viewer) follow(ctx context.Context) {
 		case <-time.After(delay):
 			if v.following {
 				prevOffset := lastOffset
-				lastOffset = v.fetcher.lastOffset()
+				lastOffset = v.fetcher.lastWriteOffset()
 				if lastOffset != prevOffset {
+					logging.Debug("follow-->", lastOffset)
 					go func() {
 						go termbox.Interrupt()
 						select {
