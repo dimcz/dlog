@@ -581,7 +581,7 @@ var requestRefill = make(chan struct{})
 var requestStatusUpdate = make(chan LineNo)
 var requestKeepCharsChange = make(chan int)
 
-func (v *viewer) termGui(terminalName string) {
+func (v *viewer) termGui(terminalName string, callback func()) {
 	if err := termbox.Init(); err != nil {
 		panic(err)
 	}
@@ -617,6 +617,8 @@ func (v *viewer) termGui(terminalName string) {
 
 	v.resize(termbox.Size())
 	v.navigateEnd()
+
+	callback()
 
 	wg.Add(3)
 	go func() { v.refreshIfEmpty(ctx); wg.Done() }()
