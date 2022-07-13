@@ -26,6 +26,7 @@ type File struct {
 	m sync.Mutex
 	b []byte
 	i int
+	w int
 }
 
 // New creates and initializes a new File using b as its initial contents.
@@ -75,6 +76,10 @@ func (fb *File) Insert(b []byte) (int, error) {
 	fb.b = append(b, fb.b...)
 	fb.i = len(fb.b)
 
+	if fb.w == 0 {
+		fb.w = fb.i
+	}
+
 	return len(fb.b), nil
 }
 
@@ -92,6 +97,7 @@ func (fb *File) Write(b []byte) (int, error) {
 
 	n, err := fb.writeAt(b, int64(fb.i))
 	fb.i += n
+	fb.w += n
 	return n, err
 }
 
@@ -168,6 +174,10 @@ func (fb *File) Bytes() []byte {
 	fb.m.Lock()
 	defer fb.m.Unlock()
 	return fb.b
+}
+
+func (fb *File) WriteLen() int {
+	return fb.w
 }
 
 // A fileStat is the implementation of FileInfo returned by Stat.

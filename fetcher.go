@@ -382,6 +382,10 @@ func (f *Fetcher) lastOffset() Offset {
 	return Offset(stat.Size() - 1)
 }
 
+func (f *Fetcher) lastWriteOffset() Offset {
+	return Offset(f.reader.WriteLen() - 1)
+}
+
 const fetchBackStep = 64 * 1024
 
 func (f *Fetcher) GetBack(ctx context.Context, fromPos Pos) <-chan Line {
