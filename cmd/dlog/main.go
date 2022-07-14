@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/dimcz/dlog"
+	"github.com/dimcz/dlog/logging"
 	"github.com/dimcz/dlog/utils"
 )
 
@@ -19,6 +20,8 @@ func main() {
 		fmt.Println("Dlog Version: ", VERSION)
 		os.Exit(0)
 	}
+
+	logging.Debug("<--DLOG-->", VERSION)
 
 	d, err := dlog.NewWithDocker()
 	utils.ExitOnErr(err)
