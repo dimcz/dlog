@@ -294,6 +294,13 @@ func ToTermboxAttr(attr ansi.RuneAttr) (fg, bg termbox.Attribute) {
 	return fg, bg
 }
 
+type cellsBuffer map[int][]struct {
+	x    int
+	char rune
+	fg   termbox.Attribute
+	bg   termbox.Attribute
+}
+
 func (v *viewer) draw() {
 	logging.LogOnErr(termbox.Clear(termbox.ColorDefault, termbox.ColorDefault))
 
@@ -304,6 +311,9 @@ func (v *viewer) draw() {
 	var hlIndices [][]int
 	var hlChars int
 	var tx int
+
+	cBuffer := make(cellsBuffer, v.height)
+	rowIndex := 0
 
 	for dataLine, ty := 0, 0; ty < v.height; ty++ {
 		tx = 0
@@ -349,12 +359,20 @@ func (v *viewer) draw() {
 			if highlightStyle != termbox.Attribute(0) {
 				fg |= highlightStyle
 			}
-			termbox.SetCell(tx, ty, char, fg, bg)
+
+			cBuffer[rowIndex] = append(cBuffer[rowIndex], struct {
+				x    int
+				char rune
+				fg   termbox.Attribute
+				bg   termbox.Attribute
+			}{x: tx, char: char, fg: fg, bg: bg})
+
 			tx += runewidth.RuneWidth(char)
 			if tx >= v.width {
 				if v.wrap {
 					tx = 0
-					ty++
+					// ty++
+					rowIndex++
 				} else {
 					break
 				}
@@ -363,7 +381,20 @@ func (v *viewer) draw() {
 		if ty >= v.height {
 			break
 		}
+
 		dataLine++
+		rowIndex++
+	}
+
+	rowIndex -= v.height
+	if rowIndex < 0 {
+		rowIndex = 0
+	}
+	for ty := 0; ty < v.height; ty++ {
+		for _, c := range cBuffer[rowIndex] {
+			termbox.SetCell(c.x, ty, c.char, c.fg, c.bg)
+		}
+		rowIndex++
 	}
 
 	v.info.draw()
