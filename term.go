@@ -294,16 +294,21 @@ func ToTermboxAttr(attr ansi.RuneAttr) (fg, bg termbox.Attribute) {
 	return fg, bg
 }
 
-type cellsBuffer map[int][]struct {
+type cellLine struct {
+	pos   Pos
+	cells []cellChar
+}
+
+type cellChar struct {
 	x    int
 	char rune
 	fg   termbox.Attribute
 	bg   termbox.Attribute
 }
 
-func (v *viewer) draw() {
-	logging.LogOnErr(termbox.Clear(termbox.ColorDefault, termbox.ColorDefault))
+type cellsBuffer map[int]cellLine
 
+func (v *viewer) fillBuffer() cellsBuffer {
 	var chars []rune
 	var attrs []ansi.RuneAttr
 	var attr ansi.RuneAttr
@@ -312,16 +317,16 @@ func (v *viewer) draw() {
 	var hlChars int
 	var tx int
 
-	cBuffer := make(cellsBuffer, v.height)
-	rowIndex := 0
+	cls := make(cellsBuffer, v.height)
 
-	for dataLine, ty := 0, 0; ty < v.height; ty++ {
+	for idx, dataLine, ty := 0, 0, 0; ty < v.height; ty++ {
 		tx = 0
 		hlChars = 0
 		line, err := v.buffer.getLine(dataLine)
 		if err == io.EOF {
 			break
 		}
+		l := cellLine{pos: line.Pos}
 		chars, attrs = v.replaceWithKeptChars(line.Str)
 
 		// remove time stamp in beginning of line
@@ -360,19 +365,18 @@ func (v *viewer) draw() {
 				fg |= highlightStyle
 			}
 
-			cBuffer[rowIndex] = append(cBuffer[rowIndex], struct {
-				x    int
-				char rune
-				fg   termbox.Attribute
-				bg   termbox.Attribute
-			}{x: tx, char: char, fg: fg, bg: bg})
+			l.cells = append(l.cells, cellChar{tx, char, fg, bg})
 
 			tx += runewidth.RuneWidth(char)
 			if tx >= v.width {
 				if v.wrap {
 					tx = 0
-					// ty++
-					rowIndex++
+
+					cls[idx] = l
+					l = cellLine{pos: line.Pos}
+
+					idx += 1
+
 				} else {
 					break
 				}
@@ -382,19 +386,47 @@ func (v *viewer) draw() {
 			break
 		}
 
+		cls[idx] = l
+
+		idx += 1
+
 		dataLine++
-		rowIndex++
 	}
 
-	rowIndex -= v.height
-	if rowIndex < 0 {
-		rowIndex = 0
+	return cls
+}
+
+func (v *viewer) draw() {
+	logging.LogOnErr(termbox.Clear(termbox.ColorDefault, termbox.ColorDefault))
+
+	buffer := v.fillBuffer()
+	for ty := 0; ty < v.height; ty++ {
+		for _, l := range buffer[ty].cells {
+			termbox.SetCell(l.x, ty, l.char, l.fg, l.bg)
+		}
+	}
+
+	v.info.draw()
+
+	logging.LogOnErr(termbox.Flush())
+}
+
+func (v *viewer) drawEnd() {
+	logging.LogOnErr(termbox.Clear(termbox.ColorDefault, termbox.ColorDefault))
+
+	buffer := v.fillBuffer()
+
+	rowIdx := len(buffer) - v.height
+	v.buffer.reset(Pos{POS_UNKNOWN, buffer[rowIdx].pos.Offset})
+
+	if rowIdx < 0 {
+		rowIdx = 0
 	}
 	for ty := 0; ty < v.height; ty++ {
-		for _, c := range cBuffer[rowIndex] {
-			termbox.SetCell(c.x, ty, c.char, c.fg, c.bg)
+		for _, l := range buffer[rowIdx].cells {
+			termbox.SetCell(l.x, ty, l.char, l.fg, l.bg)
 		}
-		rowIndex++
+		rowIdx++
 	}
 
 	v.info.draw()
@@ -413,9 +445,9 @@ func (v *viewer) navigate(direction int) {
 
 func (v *viewer) navigateEnd() {
 	v.buffer.reset(Pos{POS_UNKNOWN, v.fetcher.lastOffset()})
-	v.navigate(-v.height)
-
+	v.buffer.shift(-v.height)
 	v.following = true
+	v.drawEnd()
 }
 
 func (v *viewer) navigateStart() {
