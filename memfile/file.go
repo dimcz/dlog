@@ -16,10 +16,6 @@ import (
 
 var errInvalid = errors.New("invalid argument")
 
-type Buffer struct {
-	bytes []byte
-}
-
 // File is an in-memory emulation of the I/O operations of os.File.
 // The zero value for File is an empty file ready to use.
 type File struct {
