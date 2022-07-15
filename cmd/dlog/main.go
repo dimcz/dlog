@@ -21,7 +21,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	logging.Debug("<--DLOG-->", VERSION)
+	logging.Debug("<-- DLOG -->", VERSION)
 
 	d, err := dlog.NewWithDocker()
 	utils.ExitOnErr(err)
