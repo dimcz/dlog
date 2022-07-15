@@ -7,7 +7,6 @@ import (
 
 	"github.com/dimcz/dlog/docker"
 	"github.com/dimcz/dlog/memfile"
-	"github.com/nsf/termbox-go"
 )
 
 type Dlog struct {
@@ -25,7 +24,7 @@ func (d *Dlog) GetFile() *memfile.File {
 }
 
 func (d *Dlog) Display() {
-	start := d.docker.Follow(height())
+	start := d.docker.Follow()
 
 	d.fetcher = NewFetcher(d.ctx, d.file)
 	_, _ = d.file.Seek(0, io.SeekStart)
@@ -55,11 +54,10 @@ func (d *Dlog) leftDirection() {
 }
 
 func (d *Dlog) reload() {
-	start := d.docker.Follow(d.v.height)
+	start := d.docker.Follow()
 
 	d.v.setTerminalName(d.docker.Name())
 
-	// Непонятный двойной хак... для M1
 	d.v.navigateEnd()
 	d.v.navigateEnd()
 
@@ -95,15 +93,4 @@ func NewWithDocker() (*Dlog, error) {
 	}
 
 	return d, nil
-}
-
-func height() int {
-	defer termbox.Close()
-
-	if err := termbox.Init(); err != nil {
-		panic(err)
-	}
-
-	_, h := termbox.Size()
-	return h
 }

@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/dimcz/dlog/config"
 	"github.com/dimcz/dlog/logging"
 	"github.com/dimcz/dlog/memfile"
 
@@ -18,8 +19,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 )
-
-const TimeShift = 24 * 60 * 60
 
 type Container struct {
 	ID   string
@@ -63,14 +62,14 @@ func (d *Docker) followFrom(t int64) {
 	}
 }
 
-func (d *Docker) Follow(initChunk int) int64 {
+func (d *Docker) Follow() int64 {
 	d.ctx, d.cancel = context.WithCancel(d.parentContext)
 
-	h := strconv.Itoa(initChunk)
+	h := strconv.Itoa(config.GetValue().Tail)
 
 	d.file.Clear()
 
-	logging.Debug(fmt.Sprintf("request %d first records", initChunk))
+	logging.Debug(fmt.Sprintf("request %s first records", h))
 	start, end, err := d.retrieveAndParseLogs(types.ContainerLogsOptions{
 		ShowStderr: true,
 		ShowStdout: true,
@@ -90,9 +89,11 @@ func (d *Docker) Follow(initChunk int) int64 {
 }
 
 func (d *Docker) Append(start int64, callBack func()) {
-	logging.Debug("execute append process")
-	d.wg.Add(1)
-	go d.appendSince(start, callBack)
+	if !config.GetValue().NoLoad {
+		logging.Debug("execute append process")
+		d.wg.Add(1)
+		go d.appendSince(start, callBack)
+	}
 }
 
 func (d *Docker) appendSince(t int64, callBack func()) {
@@ -107,7 +108,7 @@ func (d *Docker) appendSince(t int64, callBack func()) {
 		case <-d.ctx.Done():
 			return
 		default:
-			start = end - TimeShift
+			start = end - config.GetValue().TimeShift
 			_, err := d.retrieveLogs(types.ContainerLogsOptions{
 				ShowStderr: true,
 				ShowStdout: true,
