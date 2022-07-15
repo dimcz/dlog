@@ -68,7 +68,7 @@ func (d *Docker) Follow(initChunk int) int64 {
 
 	h := strconv.Itoa(initChunk)
 
-	d.reset()
+	d.file.Clear()
 
 	logging.Debug(fmt.Sprintf("request %d first records", initChunk))
 	start, end, err := d.retrieveAndParseLogs(types.ContainerLogsOptions{
@@ -89,13 +89,13 @@ func (d *Docker) Follow(initChunk int) int64 {
 	return start
 }
 
-func (d *Docker) Append(start int64) {
+func (d *Docker) Append(start int64, callBack func()) {
 	logging.Debug("execute append process")
 	d.wg.Add(1)
-	go d.appendSince(start)
+	go d.appendSince(start, callBack)
 }
 
-func (d *Docker) appendSince(t int64) {
+func (d *Docker) appendSince(t int64, callBack func()) {
 	defer d.wg.Done()
 	defer logging.Timeit("append logs")()
 
@@ -108,7 +108,6 @@ func (d *Docker) appendSince(t int64) {
 			return
 		default:
 			start = end - TimeShift
-			logging.Debug(fmt.Sprintf("request block between %d and %d", start, end))
 			_, err := d.retrieveLogs(types.ContainerLogsOptions{
 				ShowStderr: true,
 				ShowStdout: true,
@@ -121,6 +120,8 @@ func (d *Docker) appendSince(t int64) {
 				return
 			}
 			end = start - 1
+
+			callBack()
 		}
 	}
 }
@@ -206,7 +207,7 @@ func (d *Docker) retrieveLogs(options types.ContainerLogsOptions) (*memfile.File
 
 	mf := memfile.New([]byte{})
 
-	w, err := stdcopy.StdCopy(mf, mf, fd)
+	_, err = stdcopy.StdCopy(mf, mf, fd)
 	if err != nil {
 		return nil, err
 	}
@@ -215,13 +216,9 @@ func (d *Docker) retrieveLogs(options types.ContainerLogsOptions) (*memfile.File
 		return nil, fmt.Errorf("retrieve empty logs")
 	}
 
-	logging.Debug(fmt.Sprintf("retrieveLogs: got buffer array with length %d, write %d", len(mf.Bytes()), w))
-
 	if _, err := d.file.Insert(mf.Bytes()); err != nil {
 		return nil, err
 	}
-
-	logging.Debug(fmt.Sprintf("retrieveLogs: after insert, array length is %d", len(mf.Bytes())))
 
 	return mf, nil
 }
@@ -249,10 +246,4 @@ func (d *Docker) retrieveAndParseLogs(opts types.ContainerLogsOptions) (int64, i
 	}
 
 	return start.Unix(), end.Unix(), nil
-}
-
-func (d *Docker) reset() {
-	if err := d.file.Truncate(0); err != nil {
-		logging.Debug("failed to execute Truncate with error:", err)
-	}
 }

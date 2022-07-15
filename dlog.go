@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/dimcz/dlog/docker"
-	"github.com/dimcz/dlog/logging"
 	"github.com/dimcz/dlog/memfile"
 	"github.com/nsf/termbox-go"
 )
@@ -29,7 +28,7 @@ func (d *Dlog) Display() {
 	start := d.docker.Follow(height())
 
 	d.fetcher = NewFetcher(d.ctx, d.file)
-	d.resetFetcher()
+	_, _ = d.file.Seek(0, io.SeekStart)
 
 	d.v = NewViewer(
 		WithCtx(d.ctx),
@@ -39,15 +38,8 @@ func (d *Dlog) Display() {
 		WithKeyArrowLeft(d.leftDirection))
 
 	d.v.termGui(d.docker.Name(), func() {
-		d.docker.Append(start)
+		d.docker.Append(start, d.v.refill)
 	})
-}
-
-func (d *Dlog) resetFetcher() {
-	_, err := d.file.Seek(0, io.SeekStart)
-	logging.LogOnErr(err)
-
-	d.fetcher.seek(0)
 }
 
 func (d *Dlog) rightDirection() {
@@ -66,10 +58,9 @@ func (d *Dlog) reload() {
 	start := d.docker.Follow(d.v.height)
 
 	d.v.setTerminalName(d.docker.Name())
-	d.resetFetcher()
 	d.v.navigateEnd()
 
-	d.docker.Append(start)
+	d.docker.Append(start, d.v.refill)
 }
 
 func (d *Dlog) Shutdown() {

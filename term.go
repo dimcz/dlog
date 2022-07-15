@@ -40,8 +40,7 @@ type viewer struct {
 
 	keyArrowRight func()
 	keyArrowLeft  func()
-
-	lastLineControl chan struct{}
+	direction     int
 }
 
 type action uint
@@ -51,6 +50,11 @@ const (
 	NO_ACTION action = iota
 	ACTION_QUIT
 	ACTION_RESET_FOCUS
+)
+
+const (
+	DirectionUP = iota
+	DirectionDown
 )
 
 type View interface {
@@ -111,8 +115,6 @@ func NewViewer(opts ...ViewOptionsFunc) *viewer {
 	if v.keyArrowRight == nil {
 		v.keyArrowRight = v.navigateRight
 	}
-
-	v.lastLineControl = make(chan struct{}, 1)
 
 	return v
 }
@@ -294,21 +296,16 @@ func ToTermboxAttr(attr ansi.RuneAttr) (fg, bg termbox.Attribute) {
 	return fg, bg
 }
 
-type cellLine struct {
-	pos   Pos
-	cells []cellChar
-}
-
-type cellChar struct {
+type TerminalCell struct {
 	x    int
 	char rune
 	fg   termbox.Attribute
 	bg   termbox.Attribute
 }
 
-type cellsBuffer map[int]cellLine
+type CellsBuffer map[int][]TerminalCell
 
-func (v *viewer) fillBuffer() cellsBuffer {
+func (v *viewer) fillBuffer() CellsBuffer {
 	var chars []rune
 	var attrs []ansi.RuneAttr
 	var attr ansi.RuneAttr
@@ -317,16 +314,15 @@ func (v *viewer) fillBuffer() cellsBuffer {
 	var hlChars int
 	var tx int
 
-	cls := make(cellsBuffer, v.height)
+	cells := make(CellsBuffer, v.height)
 
-	for idx, dataLine, ty := 0, 0, 0; ty < v.height; ty++ {
+	for cellIndex, dataLine, ty := 0, 0, 0; ty < v.height; ty++ {
 		tx = 0
 		hlChars = 0
 		line, err := v.buffer.getLine(dataLine)
 		if err == io.EOF {
 			break
 		}
-		l := cellLine{pos: line.Pos}
 		chars, attrs = v.replaceWithKeptChars(line.Str)
 
 		// remove time stamp in beginning of line
@@ -365,18 +361,13 @@ func (v *viewer) fillBuffer() cellsBuffer {
 				fg |= highlightStyle
 			}
 
-			l.cells = append(l.cells, cellChar{tx, char, fg, bg})
+			cells[cellIndex] = append(cells[cellIndex], TerminalCell{tx, char, fg, bg})
 
 			tx += runewidth.RuneWidth(char)
 			if tx >= v.width {
 				if v.wrap {
 					tx = 0
-
-					cls[idx] = l
-					l = cellLine{pos: line.Pos}
-
-					idx += 1
-
+					cellIndex++
 				} else {
 					break
 				}
@@ -385,48 +376,27 @@ func (v *viewer) fillBuffer() cellsBuffer {
 		if ty >= v.height {
 			break
 		}
-
-		cls[idx] = l
-
-		idx += 1
-
+		cellIndex++
 		dataLine++
 	}
 
-	return cls
+	return cells
 }
 
 func (v *viewer) draw() {
 	logging.LogOnErr(termbox.Clear(termbox.ColorDefault, termbox.ColorDefault))
 
 	buffer := v.fillBuffer()
-	for ty := 0; ty < v.height; ty++ {
-		for _, l := range buffer[ty].cells {
-			termbox.SetCell(l.x, ty, l.char, l.fg, l.bg)
-		}
+
+	offset := len(buffer) - v.height
+	if offset < 0 || v.direction == DirectionUP {
+		offset = 0
 	}
 
-	v.info.draw()
-
-	logging.LogOnErr(termbox.Flush())
-}
-
-func (v *viewer) drawEnd() {
-	logging.LogOnErr(termbox.Clear(termbox.ColorDefault, termbox.ColorDefault))
-
-	buffer := v.fillBuffer()
-
-	rowIdx := len(buffer) - v.height
-	v.buffer.reset(Pos{POS_UNKNOWN, buffer[rowIdx].pos.Offset})
-
-	if rowIdx < 0 {
-		rowIdx = 0
-	}
 	for ty := 0; ty < v.height; ty++ {
-		for _, l := range buffer[rowIdx].cells {
-			termbox.SetCell(l.x, ty, l.char, l.fg, l.bg)
+		for _, cell := range buffer[ty+offset] {
+			termbox.SetCell(cell.x, ty, cell.char, cell.fg, cell.bg)
 		}
-		rowIdx++
 	}
 
 	v.info.draw()
@@ -444,13 +414,14 @@ func (v *viewer) navigate(direction int) {
 }
 
 func (v *viewer) navigateEnd() {
+	v.direction = DirectionDown
 	v.buffer.reset(Pos{POS_UNKNOWN, v.fetcher.lastOffset()})
-	v.buffer.shift(-v.height)
+	v.navigate(-v.height)
 	v.following = true
-	v.drawEnd()
 }
 
 func (v *viewer) navigateStart() {
+	v.direction = DirectionUP
 	v.following = false
 	v.buffer.reset(Pos{0, 0})
 	v.draw()
@@ -612,6 +583,7 @@ var requestRefresh = make(chan struct{})
 var requestRefill = make(chan struct{})
 var requestStatusUpdate = make(chan LineNo)
 var requestKeepCharsChange = make(chan int)
+var lastLineControl = make(chan struct{})
 
 func (v *viewer) termGui(terminalName string, callback func()) {
 	if err := termbox.Init(); err != nil {
@@ -701,9 +673,7 @@ func (v *viewer) initScreen() {
 	logging.LogOnErr(termbox.Clear(termbox.ColorDefault, termbox.ColorDefault))
 	v.buffer.reset(Pos{0, 0})
 
-	select {
-	case v.lastLineControl <- struct{}{}:
-	}
+	v.resetLastLine()
 
 	tx, ty := termbox.Size()
 
@@ -718,6 +688,9 @@ func (v *viewer) initScreen() {
 }
 
 func (v *viewer) refill() {
+	_v := v.following
+	v.following = false
+
 	for {
 		result := v.buffer.fill()
 		if result.newLines != 0 {
@@ -731,6 +704,7 @@ func (v *viewer) refill() {
 			continue
 		}
 
+		v.following = _v
 		v.draw()
 		return
 	}
@@ -786,6 +760,14 @@ loop:
 	unlock()
 }
 
+func (v *viewer) resetLastLine() {
+	go func() {
+		select {
+		case lastLineControl <- struct{}{}:
+		}
+	}()
+}
+
 func (v *viewer) updateLastLine(ctx context.Context) {
 	delay := 10 * time.Millisecond
 	lastLine := Pos{0, 0}
@@ -793,9 +775,9 @@ func (v *viewer) updateLastLine(ctx context.Context) {
 loop:
 	for {
 		select {
-		case <-v.lastLineControl:
+		case <-lastLineControl:
 			lastLine = Pos{0, 0}
-			delay = 10 * time.Millisecond
+			delay = 5 * time.Millisecond
 		case <-ctx.Done():
 			break loop
 		case <-time.After(delay):
@@ -882,15 +864,19 @@ func (v *viewer) processInfobarRequest(search infobarRequest) {
 	v.draw()
 }
 func (v *viewer) navigatePageUp() {
+	v.direction = DirectionUP
 	v.navigate(-v.height)
 }
 func (v *viewer) navigateHalfPageUp() {
+	v.direction = DirectionUP
 	v.navigate(-v.height / 2)
 }
 func (v *viewer) navigatePageDown() {
+	v.direction = DirectionUP
 	v.navigate(+v.height)
 }
 func (v *viewer) navigateHalfPageDown() {
+	v.direction = DirectionUP
 	v.navigate(v.height / 2)
 }
 

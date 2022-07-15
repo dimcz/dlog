@@ -160,6 +160,14 @@ func (fb *File) truncate(n int64) error {
 	}
 }
 
+func (fb *File) Clear() {
+	fb.m.Lock()
+	defer fb.m.Unlock()
+
+	fb.pos, fb.writePos = 0, 0
+	fb.b = nil
+}
+
 // Bytes returns the full contents of the File.
 // The result in only valid until the next Write, WriteAt, or Truncate call.
 func (fb *File) Bytes() []byte {
