@@ -10,6 +10,8 @@ import (
 	"github.com/dimcz/dlog/utils"
 )
 
+var gitCommit string
+
 const VERSION = "1.0.0"
 
 func main() {
@@ -17,7 +19,7 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Println("Dlog Version: ", VERSION)
+		fmt.Printf("Dlog Version: %s-%s\n", VERSION, gitCommit)
 		os.Exit(0)
 	}
 

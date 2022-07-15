@@ -23,7 +23,7 @@ makedir:
 
 build:
 	@echo -n "run build... "
-	@$(GOBUILD) -o $(BINPATH)/$(EXENAME) -ldflags="-w -s" $(CMDSOURCES)
+	@$(GOBUILD) -o $(BINPATH)/$(EXENAME) -ldflags="-w -s -X main.gitCommit=$(GIT_COMMIT)" $(CMDSOURCES)
 	@echo ok
 
 test:
