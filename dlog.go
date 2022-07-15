@@ -58,6 +58,9 @@ func (d *Dlog) reload() {
 	start := d.docker.Follow(d.v.height)
 
 	d.v.setTerminalName(d.docker.Name())
+
+	// Непонятный двойной хак... для M1
+	d.v.navigateEnd()
 	d.v.navigateEnd()
 
 	d.docker.Append(start, d.v.refill)

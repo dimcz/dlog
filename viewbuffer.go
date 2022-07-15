@@ -48,6 +48,7 @@ func (b *viewBuffer) fill() fillResult {
 	if len(b.buffer) > 0 {
 		fillFrom = b.buffer[len(b.buffer)-1].Pos // Will start getting from next Line, not from current
 	}
+	logging.Debug("fill-->", fillFrom.Line, fillFrom.Offset)
 	dataChan := b.fetcher.Get(ctx, fillFrom)
 	result := fillResult{}
 	for data := range dataChan {

@@ -389,6 +389,7 @@ func (v *viewer) draw() {
 	buffer := v.fillBuffer()
 
 	offset := len(buffer) - v.height
+	logging.Debug("-->draw:", len(buffer), v.height, offset)
 	if offset < 0 || v.direction == DirectionUP {
 		offset = 0
 	}
@@ -785,7 +786,6 @@ loop:
 			dataLine = v.fetcher.advanceLines(lastLine)
 			lastLine = dataLine.Pos
 			if lastLine != prevLine {
-				logging.Debug(fmt.Sprintf("new lines count: %d", lastLine.Line))
 				go termbox.Interrupt()
 				select {
 				case requestStatusUpdate <- lastLine.Line:
@@ -816,7 +816,6 @@ func (v *viewer) follow(ctx context.Context) {
 				prevOffset := lastOffset
 				lastOffset = v.fetcher.lastWROffset()
 				if lastOffset != prevOffset {
-					logging.Debug("follow-->", lastOffset)
 					go func() {
 						go termbox.Interrupt()
 						select {
